@@ -1,9 +1,17 @@
+import os
 import sqlite3
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parent
+DB_PATH = Path(os.environ.get("DATABASE_PATH", ROOT / "transactions.db"))
+
 
 def get_conn():
-    conn = sqlite3.connect("transactions.db")
+    DB_PATH.parent.mkdir(parents=True, exist_ok=True)
+    conn = sqlite3.connect(str(DB_PATH))
     conn.row_factory = sqlite3.Row
     return conn
+
 
 def init_db():
     conn = get_conn()
@@ -52,9 +60,15 @@ def init_db():
         item TEXT PRIMARY KEY,
         cursor TEXT
     );
+    CREATE TABLE IF NOT EXISTS coding_cache (
+        key TEXT PRIMARY KEY,
+        fetched_at TEXT,
+        payload TEXT
+    );
     """)
     conn.commit()
     conn.close()
+
 
 if __name__ == "__main__":
     init_db()

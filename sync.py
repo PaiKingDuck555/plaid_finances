@@ -82,6 +82,7 @@ def upsert(conn, t):
     ))
 
 def run():
+    """Pull latest transaction updates from Plaid into SQLite. Returns a stats dict."""
     init_db()
     conn = get_conn()
     cursor = get_cursor(conn)
@@ -99,7 +100,42 @@ def run():
     save_cursor(conn, cursor)
     conn.commit()
     conn.close()
-    print(f"added={added} modified={modified} removed={removed}")
+    stats = {"added": added, "modified": modified, "removed": removed}
+    print(f"sync: added={added} modified={modified} removed={removed}")
+    return stats
+
+
+def register_webhook(webhook_url: str):
+    """Point this Item's Plaid webhook at webhook_url (must be publicly reachable)."""
+    from plaid.model.item_webhook_update_request import ItemWebhookUpdateRequest
+    resp = client.item_webhook_update(
+        ItemWebhookUpdateRequest(access_token=ACCESS_TOKEN, webhook=webhook_url))
+    print(f"webhook registered: {webhook_url} (item={resp.item.item_id})")
+    return resp
+
+
+def set_access_token(token: str):
+    """Hot-swap the access token used by sync (after a re-link)."""
+    global ACCESS_TOKEN
+    ACCESS_TOKEN = token
+
+
+def reset_and_sync():
+    """Clear sync cursor + local txs, then pull the Item's full available history."""
+    init_db()
+    conn = get_conn()
+    conn.execute("DELETE FROM transactions")
+    conn.execute("DELETE FROM sync_state")
+    conn.commit()
+    conn.close()
+    return run()
+
 
 if __name__ == "__main__":
-    run()
+    import sys
+    if len(sys.argv) == 3 and sys.argv[1] == "--register-webhook":
+        register_webhook(sys.argv[2])
+    elif len(sys.argv) == 2 and sys.argv[1] == "--reset":
+        reset_and_sync()
+    else:
+        run()

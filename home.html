@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Dammi’s personal site</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600;9..144,700&family=Sora:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --ink: #0e1a24; --ink-2: #3d4f5c; --accent: #0d9f8a;
+    --display: "Fraunces", Georgia, serif; --sans: "Sora", system-ui, sans-serif;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    min-height: 100vh; font-family: var(--sans); color: var(--ink);
+    background:
+      radial-gradient(1000px 560px at 12% -8%, #c7f0e6, transparent 55%),
+      radial-gradient(900px 520px at 92% 0%, #d5e3ff, transparent 50%),
+      #eef2f5;
+    display: grid; place-items: center; padding: 32px 20px;
+  }
+  .wrap { max-width: 560px; width: 100%; }
+  h1 {
+    font-family: var(--display); font-weight: 700;
+    font-size: clamp(48px, 10vw, 72px); letter-spacing: -0.045em; line-height: 0.95;
+  }
+  h1 em { font-style: normal; color: var(--accent); }
+  p { margin: 16px 0 36px; color: var(--ink-2); font-size: 16px; line-height: 1.5; max-width: 34ch; }
+  .links { display: flex; flex-direction: column; gap: 12px; }
+  a.card {
+    display: block; text-decoration: none; color: var(--ink);
+    padding: 22px 24px; border-radius: 20px; background: rgba(255,255,255,0.7);
+    border: 1px solid rgba(14,26,36,0.08); transition: transform 0.18s ease, border-color 0.18s;
+  }
+  a.card:hover { transform: translateY(-2px); border-color: rgba(13,159,138,0.35); }
+  a.card .k { font-size: 11px; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase; color: var(--accent); }
+  a.card .t { font-family: var(--display); font-size: 28px; font-weight: 650; letter-spacing: -0.02em; margin-top: 6px; }
+  a.card .d { margin-top: 6px; font-size: 14px; color: var(--ink-2); }
+</style>
+</head>
+<body>
+  <div class="wrap">
+    <h1>Dammi<em>’</em>s<br>personal site</h1>
+    <p>Two rooms: money and code. Both lowercase. Both yours.</p>
+    <div class="links">
+      <a class="card" href="/finances">
+        <div class="k">money</div>
+        <div class="t">finances</div>
+        <div class="d">Daily, weekly, monthly, and 90-day spending with full history.</div>
+      </a>
+      <a class="card" href="/coding">
+        <div class="k">github</div>
+        <div class="t">coding</div>
+        <div class="d">Your contribution graph and streak — progress, every day.</div>
+      </a>
+      <a class="card" href="/servers">
+        <div class="k">ops</div>
+        <div class="t">servers</div>
+        <div class="d">Health and tasks for your machines. Coming soon.</div>
+      </a>
+    </div>
+  </div>
+</body>
+</html>

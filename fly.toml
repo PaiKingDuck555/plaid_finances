@@ -1,0 +1,27 @@
+# fly.toml app configuration file generated for dammi-personal-site
+app = "dammi-personal-site"
+primary_region = "ewr"
+
+[build]
+
+[env]
+  PORT = "8080"
+  DATABASE_PATH = "/data/transactions.db"
+  PLAID_REDIRECT_URI = "https://dammimastersite.com/oauth-return"
+  PLAID_WEBHOOK_URL = "https://dammimastersite.com/plaid/webhook"
+
+[http_service]
+  internal_port = 8080
+  force_https = true
+  auto_stop_machines = false
+  auto_start_machines = true
+  min_machines_running = 1
+
+[[mounts]]
+  source = "dammi_data"
+  destination = "/data"
+
+[[vm]]
+  memory = "512mb"
+  cpu_kind = "shared"
+  cpus = 1

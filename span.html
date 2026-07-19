@@ -1,0 +1,673 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>finances — Dammi’s personal site</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,650;9..144,700&family=Sora:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg0: #e9eef3;
+    --bg1: #f5f7fa;
+    --ink: #0e1a24;
+    --ink-2: #3d4f5c;
+    --ink-3: #7a8b97;
+    --line: rgba(14, 26, 36, 0.08);
+    --accent: #0d9f8a;
+    --accent-soft: rgba(13, 159, 138, 0.14);
+    --spend: #e24a35;
+    --surface: rgba(255, 255, 255, 0.72);
+    --display: "Fraunces", Georgia, serif;
+    --sans: "Sora", system-ui, sans-serif;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    min-height: 100vh;
+    font-family: var(--sans);
+    color: var(--ink);
+    background:
+      radial-gradient(1100px 620px at 8% -10%, #c7f0e6 0%, transparent 58%),
+      radial-gradient(900px 560px at 96% 0%, #d5e3ff 0%, transparent 52%),
+      radial-gradient(700px 480px at 70% 110%, #ffe3d8 0%, transparent 55%),
+      linear-gradient(180deg, var(--bg1), var(--bg0));
+    -webkit-font-smoothing: antialiased;
+  }
+  .site-nav {
+    display: flex; align-items: center; justify-content: space-between;
+    max-width: 980px; margin: 0 auto; padding: 18px 22px 0;
+    font-size: 13px; font-weight: 600;
+  }
+  .site-nav .mark { font-family: var(--display); font-size: 18px; letter-spacing: -0.02em; }
+  .site-nav .mark em { font-style: normal; color: var(--accent); }
+  .site-nav .links { display: flex; gap: 18px; align-items: center; }
+  .site-nav a { color: var(--ink-3); text-decoration: none; text-transform: lowercase; }
+  .site-nav a.active, .site-nav a:hover { color: var(--ink); }
+
+  .shell { max-width: 980px; margin: 0 auto; padding: 20px 22px 96px; }
+
+  .top { display: flex; align-items: baseline; justify-content: space-between; gap: 16px; margin-bottom: 8px; }
+  .brand { font-family: var(--display); font-weight: 700; font-size: clamp(42px, 8vw, 72px); letter-spacing: -0.045em; line-height: 0.95; }
+  .brand em { font-style: normal; color: var(--accent); }
+  .meta { font-size: 12px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: var(--ink-3); text-align: right; }
+  .meta a { color: var(--accent); text-decoration: none; margin-left: 10px; }
+  .tagline { margin: 10px 0 28px; max-width: 40ch; font-size: 15px; line-height: 1.45; color: var(--ink-2); font-weight: 500; }
+
+  .grains {
+    display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; padding: 6px;
+    border-radius: 999px; background: rgba(255,255,255,0.55); border: 1px solid var(--line);
+    backdrop-filter: blur(12px); margin-bottom: 28px; position: relative;
+  }
+  .grain {
+    appearance: none; border: 0; background: transparent; font: 600 12px/1 var(--sans);
+    letter-spacing: 0.04em; text-transform: uppercase; color: var(--ink-3);
+    padding: 14px 6px; border-radius: 999px; cursor: pointer; position: relative; z-index: 1;
+  }
+  .grain.active { color: #f7fffc; }
+  .grain-pill {
+    position: absolute; top: 6px; bottom: 6px; width: calc((100% - 30px) / 4); left: 6px;
+    border-radius: 999px; background: var(--ink); box-shadow: 0 10px 24px rgba(14,26,36,0.18);
+    transition: transform 0.38s cubic-bezier(.22,1,.36,1); z-index: 0;
+  }
+
+  .stage { text-align: center; margin-bottom: 34px; }
+  .nav { display: flex; align-items: center; justify-content: center; gap: 14px; margin-bottom: 18px; }
+  .nav button {
+    width: 44px; height: 44px; border-radius: 50%; border: 1px solid var(--line);
+    background: var(--surface); color: var(--ink); font-size: 18px; cursor: pointer;
+  }
+  .nav button:disabled { opacity: 0.35; cursor: default; }
+  .period-label { min-width: min(70vw, 340px); font-family: var(--display); font-weight: 650; font-size: clamp(20px, 4vw, 28px); letter-spacing: -0.02em; }
+  .period-sub { margin-top: 4px; font-size: 13px; font-weight: 500; color: var(--ink-3); }
+  .hero-spend { font-family: var(--display); font-weight: 700; font-size: clamp(56px, 12vw, 104px); letter-spacing: -0.045em; line-height: 0.95; animation: rise 0.45s cubic-bezier(.22,1,.36,1); }
+  .hero-spend .cents { font-size: 0.42em; font-weight: 650; color: var(--ink-2); }
+  .hero-kicker { margin-top: 14px; font-size: 13px; font-weight: 600; letter-spacing: 0.14em; text-transform: uppercase; color: var(--ink-3); }
+  .delta { display: inline-flex; margin-top: 16px; padding: 8px 14px; border-radius: 999px; font-size: 13px; font-weight: 600; background: var(--surface); border: 1px solid var(--line); }
+  .delta.up { color: var(--spend); } .delta.down { color: var(--accent); } .delta.flat { color: var(--ink-3); }
+
+  @keyframes rise { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: none; } }
+  @keyframes barIn { from { transform: scaleY(0); opacity: 0.2; } to { transform: scaleY(1); opacity: 1; } }
+  @keyframes barInX { from { transform: scaleX(0); opacity: 0.2; } to { transform: scaleX(1); opacity: 1; } }
+
+  .chart-block { margin-bottom: 36px; }
+  .chart { display: flex; align-items: flex-end; gap: 6px; height: 180px; padding: 8px 4px 0; overflow-x: auto; }
+  .bar-wrap { flex: 1; min-width: 18px; height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; gap: 8px; cursor: pointer; }
+  .bar {
+    width: 100%; max-width: 42px; border-radius: 12px 12px 8px 8px;
+    background: linear-gradient(180deg, #19c4a8, #0d9f8a 70%, #0a7f6f);
+    transform-origin: bottom; animation: barIn 0.5s cubic-bezier(.22,1,.36,1) both; min-height: 4px;
+  }
+  .bar-wrap:hover .bar { filter: brightness(1.08); box-shadow: 0 0 0 3px var(--accent-soft); }
+  .bar-label { font-size: 10px; font-weight: 600; color: var(--ink-3); max-width: 100%; overflow: hidden; text-overflow: ellipsis; }
+  .bar-value { font-size: 10px; font-weight: 700; color: var(--ink-2); opacity: 0; }
+  .bar-wrap:hover .bar-value { opacity: 1; }
+
+  .insights {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 22px; margin-bottom: 36px;
+  }
+  @media (max-width: 820px) { .insights { grid-template-columns: 1fr; } .grains { border-radius: 22px; } }
+  .panel {
+    background: var(--surface); border: 1px solid var(--line); border-radius: 22px;
+    padding: 20px 18px 16px; backdrop-filter: blur(10px);
+  }
+  .panel h2 { font-family: var(--display); font-size: 20px; font-weight: 650; letter-spacing: -0.02em; margin-bottom: 14px; }
+  .rank { display: flex; flex-direction: column; gap: 10px; }
+  .rank-row {
+    display: grid; grid-template-columns: auto 1fr auto; gap: 10px; align-items: center;
+    cursor: pointer; padding: 4px 2px; border-radius: 10px;
+  }
+  .rank-row:hover, .rank-row.active { background: var(--accent-soft); }
+  .rank-logo { width: 28px; height: 28px; border-radius: 8px; object-fit: cover; background: #dfe7ee; }
+  .rank-name { font-size: 13px; font-weight: 600; color: var(--ink-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .rank-meta { font-size: 11px; color: var(--ink-3); font-weight: 500; }
+  .rank-amt { font-size: 13px; font-weight: 700; font-variant-numeric: tabular-nums; }
+  .rank-track { grid-column: 1 / -1; height: 6px; border-radius: 999px; background: rgba(14,26,36,0.06); overflow: hidden; }
+  .rank-fill { height: 100%; border-radius: inherit; background: linear-gradient(90deg, #0d9f8a, #2bd4b4); transform-origin: left; animation: barInX 0.5s cubic-bezier(.22,1,.36,1) both; }
+
+  .tod { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-bottom: 14px; }
+  .tod-card { text-align: center; padding: 12px 6px; border-radius: 14px; background: rgba(14,26,36,0.03); }
+  .tod-card .v { font-family: var(--display); font-weight: 650; font-size: 18px; }
+  .tod-card .l { font-size: 10px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--ink-3); margin-top: 4px; }
+  .hours { display: flex; align-items: flex-end; gap: 3px; height: 64px; }
+  .hour { flex: 1; background: var(--accent); border-radius: 3px 3px 1px 1px; min-height: 2px; opacity: 0.85; transform-origin: bottom; animation: barIn 0.4s both; }
+
+  .history-head {
+    display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 14px;
+  }
+  .history-head h2 { font-family: var(--display); font-size: 22px; font-weight: 650; }
+  .history-tools { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+  .history-tools input {
+    border: 1px solid var(--line); background: #fff; border-radius: 999px; padding: 10px 14px;
+    font: 500 13px var(--sans); min-width: 200px; color: var(--ink);
+  }
+  .toggle {
+    display: inline-flex; align-items: center; gap: 8px; font-size: 12px; font-weight: 600; color: var(--ink-2); cursor: pointer;
+  }
+  .toggle input { accent-color: var(--accent); }
+  .hist-stats { font-size: 12px; font-weight: 600; color: var(--ink-3); width: 100%; }
+  .txs {
+    max-height: 520px; overflow: auto; border: 1px solid var(--line); border-radius: 18px;
+    background: var(--surface); padding: 4px 12px;
+  }
+  .tx {
+    display: grid; grid-template-columns: 1fr auto; gap: 2px 16px; padding: 12px 4px;
+    border-bottom: 1px solid var(--line);
+  }
+  .tx:last-child { border-bottom: 0; }
+  .tx-name { font-size: 14px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .tx-meta { font-size: 12px; color: var(--ink-3); font-weight: 500; }
+  .tx-amt { grid-row: 1 / 3; align-self: center; font-weight: 700; color: var(--spend); font-variant-numeric: tabular-nums; }
+  .tx-amt.in { color: var(--accent); }
+  .empty { color: var(--ink-3); font-size: 14px; padding: 20px 0; }
+  .banner { display: none; margin: 0 0 22px; padding: 12px 16px; border-radius: 14px; background: var(--accent-soft); color: #066655; font-size: 13px; font-weight: 600; }
+  .banner.show { display: block; }
+  .filter-chip {
+    display: none; align-items: center; gap: 8px; padding: 6px 12px; border-radius: 999px;
+    background: var(--accent-soft); color: #066655; font-size: 12px; font-weight: 600; margin-bottom: 12px;
+  }
+  .filter-chip.show { display: inline-flex; }
+  .filter-chip button { border: 0; background: transparent; color: inherit; font-weight: 700; cursor: pointer; }
+</style>
+</head>
+<body>
+  <nav class="site-nav">
+    <div class="mark">Dammi<em>’</em>s personal site</div>
+    <div class="links">
+      <a class="active" href="/finances">finances</a>
+      <a href="/coding">coding</a>
+      <a href="/servers">servers</a>
+      <a href="/logout">logout</a>
+    </div>
+  </nav>
+
+  <div class="shell">
+    <div class="top">
+      <div class="brand">fin<em>a</em>nces</div>
+      <div class="meta">
+        <span id="asof"></span>
+        <a href="/link">extend history</a>
+      </div>
+    </div>
+    <p class="tagline">All-time spending, one period at a time — with merchants, places, hours, and the full ledger.</p>
+    <div id="banner" class="banner">Pulling the longest history available. New days may keep arriving for a minute.</div>
+
+    <div class="grains" role="tablist">
+      <div class="grain-pill" id="pill"></div>
+      <button class="grain" data-grain="day">Daily</button>
+      <button class="grain active" data-grain="week">Weekly</button>
+      <button class="grain" data-grain="month">Monthly</button>
+      <button class="grain" data-grain="days90">90 days</button>
+    </div>
+
+    <section class="stage">
+      <div class="nav">
+        <button id="prev" aria-label="Previous">←</button>
+        <div>
+          <div class="period-label" id="periodLabel">—</div>
+          <div class="period-sub" id="periodSub"></div>
+        </div>
+        <button id="next" aria-label="Next">→</button>
+      </div>
+      <div class="hero-spend" id="heroSpend">$0</div>
+      <div class="hero-kicker" id="heroKicker">spent</div>
+      <div class="delta flat" id="delta">vs prior period</div>
+    </section>
+
+    <section class="chart-block"><div class="chart" id="chart"></div></section>
+
+    <section class="insights">
+      <div class="panel">
+        <h2>Top merchants</h2>
+        <div class="rank" id="merchants"></div>
+      </div>
+      <div class="panel">
+        <h2>Categories</h2>
+        <div class="rank" id="cats"></div>
+      </div>
+      <div class="panel">
+        <h2>Locations</h2>
+        <div class="rank" id="locations"></div>
+      </div>
+      <div class="panel">
+        <h2>Time of day</h2>
+        <div class="tod" id="tod"></div>
+        <div class="hours" id="hours"></div>
+      </div>
+    </section>
+
+    <section>
+      <div class="history-head">
+        <h2>History</h2>
+        <div class="history-tools">
+          <input id="search" type="search" placeholder="Search this period…">
+          <label class="toggle"><input type="checkbox" id="hideTransfers" checked> Hide transfers</label>
+        </div>
+        <div class="hist-stats" id="histStats"></div>
+      </div>
+      <div class="filter-chip" id="merchantFilter"><span id="merchantFilterLabel"></span><button type="button" id="clearMerchant">✕</button></div>
+      <div class="txs" id="txs"></div>
+    </section>
+  </div>
+
+<script>
+const TRANSFER = new Set(["TRANSFER_IN", "TRANSFER_OUT"]);
+const GRAINS = ["day", "week", "month", "days90"];
+const state = {
+  grain: "week",
+  index: -1,
+  periods: [],
+  txs: [],
+  merchantFilter: null,
+  hideTransfers: true,
+  search: "",
+};
+
+const money = (n) => {
+  const abs = Math.abs(n || 0);
+  const [w, c] = abs.toFixed(2).split(".");
+  return { whole: Number(w).toLocaleString("en-US"), cents: c, sign: n < 0 ? "-" : "" };
+};
+const fmtMoney = (n) => { const m = money(n); return `${m.sign}$${m.whole}.${m.cents}`; };
+const prettyCat = (c) => (c || "Uncategorized").replaceAll("_", " ").toLowerCase();
+const parseISO = (s) => { const [y, m, d] = s.split("-").map(Number); return new Date(y, m - 1, d); };
+const iso = (d) => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;
+const startOfWeek = (d) => { const x = new Date(d); x.setDate(x.getDate() - ((x.getDay() + 6) % 7)); return x; };
+const endOfWeek = (d) => { const s = startOfWeek(d); s.setDate(s.getDate() + 6); return s; };
+const startOfMonth = (d) => new Date(d.getFullYear(), d.getMonth(), 1);
+const endOfMonth = (d) => new Date(d.getFullYear(), d.getMonth() + 1, 0);
+const fmtDay = (d) => d.toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" });
+const fmtDayLong = (d) => d.toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric", year: "numeric" });
+const fmtMonth = (d) => d.toLocaleDateString("en-US", { month: "long", year: "numeric" });
+const fmtRange = (a, b) => {
+  if (a.getMonth() === b.getMonth() && a.getFullYear() === b.getFullYear())
+    return `${a.toLocaleDateString("en-US", { month: "short", day: "numeric" })} – ${b.getDate()}, ${b.getFullYear()}`;
+  return `${a.toLocaleDateString("en-US", { month: "short", day: "numeric" })} – ${b.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}`;
+};
+
+const isSpend = (t) => !t.pending && t.amount > 0 && !TRANSFER.has(t.category);
+const merchantOf = (t) => t.merchant_name || t.name || "Unknown";
+
+function addDays(d, n) { const x = new Date(d); x.setDate(x.getDate() + n); return x; }
+
+function buildPeriods(grain, txs) {
+  const dates = [...new Set(txs.map(t => t.date))].sort();
+  if (!dates.length) return [];
+  const min = parseISO(dates[0]);
+  const max = parseISO(dates[dates.length - 1]);
+  const periods = [];
+
+  if (grain === "day") {
+    for (let d = new Date(min); d <= max; d.setDate(d.getDate() + 1)) {
+      const key = iso(d);
+      periods.push({ key, label: fmtDay(d), sub: String(d.getFullYear()), start: key, end: key });
+    }
+    const active = new Set(dates);
+    return attachSpend(periods.filter(p => active.has(p.key)), txs);
+  }
+
+  if (grain === "week") {
+    let cursor = startOfWeek(min);
+    const last = endOfWeek(max);
+    while (cursor <= last) {
+      const s = new Date(cursor), e = endOfWeek(cursor);
+      periods.push({ key: iso(s), label: fmtRange(s, e), sub: "Week", start: iso(s), end: iso(e) });
+      cursor.setDate(cursor.getDate() + 7);
+    }
+    return attachSpend(periods.filter(p => txs.some(t => t.date >= p.start && t.date <= p.end)), txs);
+  }
+
+  if (grain === "month") {
+    let cursor = startOfMonth(min);
+    const last = startOfMonth(max);
+    while (cursor <= last) {
+      const s = startOfMonth(cursor), e = endOfMonth(cursor);
+      const key = `${s.getFullYear()}-${String(s.getMonth()+1).padStart(2,"0")}`;
+      periods.push({ key, label: fmtMonth(s), sub: "Month", start: iso(s), end: iso(e) });
+      cursor = new Date(s.getFullYear(), s.getMonth() + 1, 1);
+    }
+    return attachSpend(periods.filter(p => txs.some(t => t.date >= p.start && t.date <= p.end)), txs);
+  }
+
+  // Rolling 90-day windows stepping back from max
+  let end = new Date(max);
+  while (end >= min) {
+    let start = addDays(end, -89);
+    if (start < min) start = new Date(min);
+    periods.unshift({
+      key: `${iso(start)}_${iso(end)}`,
+      label: fmtRange(start, end),
+      sub: "90 days",
+      start: iso(start),
+      end: iso(end),
+    });
+    end = addDays(start, -1);
+    if (iso(end) === iso(addDays(start, -1)) && start.getTime() === min.getTime()) break;
+  }
+  return attachSpend(periods, txs);
+}
+
+function attachSpend(periods, txs) {
+  for (const p of periods) {
+    p.spent = txs.filter(t => isSpend(t) && t.date >= p.start && t.date <= p.end)
+      .reduce((s, t) => s + t.amount, 0);
+  }
+  return periods;
+}
+
+function currentPeriod() { return state.periods[state.index] || null; }
+
+function txsInPeriod(p, { respectFilters = true } = {}) {
+  if (!p) return [];
+  let list = state.txs.filter(t => !t.pending && t.date >= p.start && t.date <= p.end);
+  if (respectFilters) {
+    if (state.hideTransfers) list = list.filter(t => !TRANSFER.has(t.category));
+    if (state.merchantFilter) list = list.filter(t => merchantOf(t) === state.merchantFilter);
+    if (state.search) {
+      const q = state.search.toLowerCase();
+      list = list.filter(t =>
+        [t.name, t.merchant_name, t.category, t.location_city, t.original_description]
+          .some(v => v && String(v).toLowerCase().includes(q)));
+    }
+  }
+  return list.sort((a, b) => (a.date < b.date ? 1 : a.date > b.date ? -1 : Math.abs(b.amount) - Math.abs(a.amount)));
+}
+
+function chartBuckets(p) {
+  if (state.grain === "day") {
+    const map = new Map();
+    for (const t of txsInPeriod(p, { respectFilters: false }).filter(isSpend)) {
+      const k = prettyCat(t.category);
+      map.set(k, (map.get(k) || 0) + t.amount);
+    }
+    return [...map.entries()].sort((a,b)=>b[1]-a[1]).slice(0, 8)
+      .map(([label, spent]) => ({ key: label, label: label.split(" ")[0], spent, jump: null }));
+  }
+  if (state.grain === "week") {
+    const s = parseISO(p.start);
+    return Array.from({ length: 7 }, (_, i) => {
+      const d = addDays(s, i); const key = iso(d);
+      const spent = state.txs.filter(t => isSpend(t) && t.date === key).reduce((n, t) => n + t.amount, 0);
+      return { key, label: d.toLocaleDateString("en-US", { weekday: "narrow" }), spent, jump: { grain: "day", key } };
+    });
+  }
+  if (state.grain === "month") {
+    const s = parseISO(p.start), e = parseISO(p.end), buckets = [];
+    for (let d = new Date(s); d <= e; d.setDate(d.getDate() + 1)) {
+      const key = iso(d);
+      const spent = state.txs.filter(t => isSpend(t) && t.date === key).reduce((n, t) => n + t.amount, 0);
+      buckets.push({ key, label: String(d.getDate()), spent, jump: { grain: "day", key } });
+    }
+    return buckets;
+  }
+  // 90 days → weekly bars
+  const s = parseISO(p.start), e = parseISO(p.end), buckets = [];
+  let cursor = startOfWeek(s);
+  while (cursor <= e) {
+    const ws = new Date(Math.max(cursor, s));
+    const we = new Date(Math.min(endOfWeek(cursor), e));
+    const key = iso(ws);
+    const spent = state.txs.filter(t => isSpend(t) && t.date >= iso(ws) && t.date <= iso(we)).reduce((n, t) => n + t.amount, 0);
+    buckets.push({
+      key, label: ws.toLocaleDateString("en-US", { month: "numeric", day: "numeric" }),
+      spent, jump: { grain: "week", key: iso(startOfWeek(ws)) },
+    });
+    cursor.setDate(cursor.getDate() + 7);
+  }
+  return buckets;
+}
+
+function setGrain(grain, { keepNear = true } = {}) {
+  const prev = currentPeriod();
+  state.grain = grain;
+  state.periods = buildPeriods(grain, state.txs);
+  document.querySelectorAll(".grain").forEach((btn, i) => {
+    btn.classList.toggle("active", btn.dataset.grain === grain);
+    if (btn.dataset.grain === grain) {
+      document.getElementById("pill").style.transform = `translateX(calc(${i} * (100% + 6px)))`;
+    }
+  });
+  if (!state.periods.length) { state.index = -1; render(); return; }
+  if (keepNear && prev) {
+    let idx = state.periods.findIndex(p => prev.start >= p.start && prev.start <= p.end);
+    state.index = idx >= 0 ? idx : state.periods.length - 1;
+  } else {
+    state.index = state.periods.length - 1;
+  }
+  render();
+}
+
+function go(delta) {
+  if (state.index < 0) return;
+  state.index = Math.max(0, Math.min(state.periods.length - 1, state.index + delta));
+  render();
+}
+
+function jumpTo(grain, key) {
+  state.grain = grain;
+  state.periods = buildPeriods(grain, state.txs);
+  document.querySelectorAll(".grain").forEach((btn, i) => {
+    btn.classList.toggle("active", btn.dataset.grain === grain);
+    if (btn.dataset.grain === grain) {
+      document.getElementById("pill").style.transform = `translateX(calc(${i} * (100% + 6px)))`;
+    }
+  });
+  const idx = state.periods.findIndex(p => p.key === key);
+  state.index = idx >= 0 ? idx : state.periods.length - 1;
+  render();
+}
+
+function renderRank(el, rows, { onClick } = {}) {
+  if (!rows.length) { el.innerHTML = `<div class="empty">Nothing in this period</div>`; return; }
+  const max = rows[0].spent || 1;
+  el.innerHTML = rows.map((r, i) => `
+    <div class="rank-row ${r.active ? "active" : ""}" data-i="${i}">
+      ${r.logo ? `<img class="rank-logo" src="${r.logo}" alt="">` : `<div class="rank-logo"></div>`}
+      <div>
+        <div class="rank-name">${r.name}</div>
+        <div class="rank-meta">${r.meta || ""}</div>
+      </div>
+      <div class="rank-amt">${fmtMoney(r.spent)}</div>
+      <div class="rank-track"><div class="rank-fill" style="width:${(r.spent/max)*100}%;animation-delay:${i*0.03}s"></div></div>
+    </div>`).join("");
+  if (onClick) {
+    el.querySelectorAll(".rank-row").forEach((node, i) => {
+      node.addEventListener("click", () => onClick(rows[i]));
+    });
+  }
+}
+
+function renderInsights(p) {
+  const base = state.txs.filter(t => isSpend(t) && t.date >= p.start && t.date <= p.end);
+
+  // merchants
+  const mMap = new Map();
+  for (const t of base) {
+    const name = merchantOf(t);
+    const cur = mMap.get(name) || { name, spent: 0, n: 0, logo: t.logo_url };
+    cur.spent += t.amount; cur.n += 1;
+    if (!cur.logo && t.logo_url) cur.logo = t.logo_url;
+    mMap.set(name, cur);
+  }
+  const merchants = [...mMap.values()].sort((a,b)=>b.spent-a.spent).slice(0, 8)
+    .map(r => ({ ...r, meta: `${r.n} tx`, active: state.merchantFilter === r.name }));
+  renderRank(document.getElementById("merchants"), merchants, {
+    onClick: (r) => {
+      state.merchantFilter = state.merchantFilter === r.name ? null : r.name;
+      render();
+    }
+  });
+
+  // categories
+  const cMap = new Map();
+  for (const t of base) {
+    const name = prettyCat(t.category);
+    const cur = cMap.get(name) || { name, spent: 0, n: 0 };
+    cur.spent += t.amount; cur.n += 1;
+    cMap.set(name, cur);
+  }
+  renderRank(document.getElementById("cats"),
+    [...cMap.values()].sort((a,b)=>b.spent-a.spent).slice(0, 8).map(r => ({ ...r, meta: r.n + " tx", logo: null })));
+
+  // locations
+  const lMap = new Map();
+  for (const t of base) {
+    const name = t.location_city || (t.location_region ? t.location_region : null);
+    if (!name) continue;
+    const label = t.location_region && t.location_city ? `${t.location_city}, ${t.location_region}` : name;
+    const cur = lMap.get(label) || { name: label, spent: 0, n: 0 };
+    cur.spent += t.amount; cur.n += 1;
+    lMap.set(label, cur);
+  }
+  const locs = [...lMap.values()].sort((a,b)=>b.spent-a.spent).slice(0, 8)
+    .map(r => ({ ...r, meta: r.n + " tx", logo: null }));
+  renderRank(document.getElementById("locations"), locs);
+
+  // time of day
+  const bands = { Morning: 0, Afternoon: 0, Evening: 0, Night: 0 };
+  const hours = Array(24).fill(0);
+  let timed = 0;
+  for (const t of base) {
+    const raw = t.datetime || t.authorized_datetime;
+    if (!raw) continue;
+    const h = new Date(raw).getHours();
+    if (Number.isNaN(h)) continue;
+    timed += 1;
+    hours[h] += t.amount;
+    if (h >= 5 && h < 12) bands.Morning += t.amount;
+    else if (h >= 12 && h < 17) bands.Afternoon += t.amount;
+    else if (h >= 17 && h < 21) bands.Evening += t.amount;
+    else bands.Night += t.amount;
+  }
+  document.getElementById("tod").innerHTML = Object.entries(bands).map(([l, v]) => `
+    <div class="tod-card"><div class="v">${timed ? fmtMoney(v) : "—"}</div><div class="l">${l}</div></div>`).join("");
+  const hMax = Math.max(...hours, 1);
+  document.getElementById("hours").innerHTML = hours.map((v, i) =>
+    `<div class="hour" title="${i}:00 — ${fmtMoney(v)}" style="height:${Math.max(2,(v/hMax)*100)}%;animation-delay:${i*0.01}s"></div>`
+  ).join("");
+}
+
+function renderHistory(p) {
+  const chip = document.getElementById("merchantFilter");
+  if (state.merchantFilter) {
+    chip.classList.add("show");
+    document.getElementById("merchantFilterLabel").textContent = state.merchantFilter;
+  } else chip.classList.remove("show");
+
+  const list = txsInPeriod(p);
+  const spent = list.filter(t => t.amount > 0).reduce((s, t) => s + t.amount, 0);
+  document.getElementById("histStats").textContent =
+    `${list.length} transactions · ${fmtMoney(spent)} outflow` +
+    (state.merchantFilter ? ` · filtered` : "");
+
+  document.getElementById("txs").innerHTML = list.length
+    ? list.map(t => {
+        const name = merchantOf(t);
+        const cls = t.amount < 0 ? "in" : "";
+        const signed = t.amount < 0 ? fmtMoney(-t.amount) : fmtMoney(t.amount);
+        const loc = t.location_city ? ` · ${t.location_city}` : "";
+        return `<div class="tx">
+          <div class="tx-name">${name}</div>
+          <div class="tx-amt ${cls}">${t.amount < 0 ? "+" : ""}${signed}</div>
+          <div class="tx-meta">${t.date} · ${prettyCat(t.category)}${loc}</div>
+        </div>`;
+      }).join("")
+    : `<div class="empty">No activity in this period</div>`;
+}
+
+function render() {
+  const p = currentPeriod();
+  const hero = document.getElementById("heroSpend");
+  if (!p) {
+    document.getElementById("periodLabel").textContent = "No activity yet";
+    hero.textContent = "$0";
+    document.getElementById("chart").innerHTML = "";
+    ["merchants","cats","locations"].forEach(id => document.getElementById(id).innerHTML = `<div class="empty">Nothing here</div>`);
+    document.getElementById("txs").innerHTML = `<div class="empty">Nothing here</div>`;
+    return;
+  }
+
+  hero.replaceWith(hero.cloneNode(true));
+  const hero2 = document.getElementById("heroSpend");
+  const m = money(p.spent);
+  hero2.innerHTML = `${m.sign}$${m.whole}<span class="cents">.${m.cents}</span>`;
+
+  document.getElementById("periodLabel").textContent = p.label;
+  document.getElementById("periodSub").textContent =
+    state.grain === "day" ? fmtDayLong(parseISO(p.start))
+    : state.grain === "week" ? "Week of " + fmtDay(parseISO(p.start))
+    : state.grain === "month" ? p.sub
+    : "Rolling window";
+  document.getElementById("heroKicker").textContent =
+    state.grain === "day" ? "spent this day"
+    : state.grain === "week" ? "spent this week"
+    : state.grain === "month" ? "spent this month"
+    : "spent in 90 days";
+
+  document.getElementById("prev").disabled = state.index <= 0;
+  document.getElementById("next").disabled = state.index >= state.periods.length - 1;
+
+  const prior = state.periods[state.index - 1];
+  const deltaEl = document.getElementById("delta");
+  if (!prior) {
+    deltaEl.className = "delta flat";
+    deltaEl.textContent = "First period on record";
+  } else {
+    const diff = p.spent - prior.spent;
+    const pct = prior.spent ? (diff / prior.spent) * 100 : 0;
+    deltaEl.className = "delta " + (diff > 0.5 ? "up" : diff < -0.5 ? "down" : "flat");
+    const arrow = diff > 0.5 ? "↑" : diff < -0.5 ? "↓" : "→";
+    deltaEl.textContent = `${arrow} ${fmtMoney(Math.abs(diff))} (${pct >= 0 ? "+" : ""}${pct.toFixed(0)}%) vs prior`;
+  }
+
+  const buckets = chartBuckets(p);
+  const max = Math.max(...buckets.map(b => b.spent), 1);
+  const chart = document.getElementById("chart");
+  chart.innerHTML = buckets.map((b, i) => {
+    const h = Math.max(4, (b.spent / max) * 100);
+    const jump = b.jump ? `data-jump-grain="${b.jump.grain}" data-jump-key="${b.jump.key}"` : "";
+    return `<div class="bar-wrap" ${jump}>
+      <div class="bar-value">${b.spent ? fmtMoney(b.spent) : ""}</div>
+      <div class="bar" style="height:${h}%;animation-delay:${(i*0.02).toFixed(2)}s"></div>
+      <div class="bar-label">${b.label}</div>
+    </div>`;
+  }).join("");
+  chart.querySelectorAll(".bar-wrap[data-jump-key]").forEach(el => {
+    el.addEventListener("click", () => jumpTo(el.dataset.jumpGrain, el.dataset.jumpKey));
+  });
+
+  renderInsights(p);
+  renderHistory(p);
+}
+
+document.querySelectorAll(".grain").forEach(btn => btn.addEventListener("click", () => setGrain(btn.dataset.grain)));
+document.getElementById("prev").addEventListener("click", () => go(-1));
+document.getElementById("next").addEventListener("click", () => go(1));
+document.getElementById("search").addEventListener("input", (e) => { state.search = e.target.value; render(); });
+document.getElementById("hideTransfers").addEventListener("change", (e) => { state.hideTransfers = e.target.checked; render(); });
+document.getElementById("clearMerchant").addEventListener("click", () => { state.merchantFilter = null; render(); });
+window.addEventListener("keydown", (e) => {
+  if (["INPUT","TEXTAREA"].includes(e.target.tagName)) return;
+  if (e.key === "ArrowLeft") go(-1);
+  if (e.key === "ArrowRight") go(1);
+  if (e.key === "1") setGrain("day");
+  if (e.key === "2") setGrain("week");
+  if (e.key === "3") setGrain("month");
+  if (e.key === "4") setGrain("days90");
+});
+
+async function boot() {
+  if (new URLSearchParams(location.search).get("fresh")) {
+    document.getElementById("banner").classList.add("show");
+  }
+  const res = await fetch("/api/transactions");
+  if (res.status === 401) { location.href = "/login"; return; }
+  state.txs = await res.json();
+  const dates = state.txs.map(t => t.date).filter(Boolean).sort();
+  document.getElementById("asof").textContent = dates.length ? `${dates[0]} → ${dates[dates.length - 1]}` : "no data";
+  setGrain("week", { keepNear: false });
+}
+boot();
+</script>
+</body>
+</html>

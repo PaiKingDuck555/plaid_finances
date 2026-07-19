@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>servers — Dammi’s personal site</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,650;9..144,700&family=Sora:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --ink: #0e1a24; --ink-2: #3d4f5c; --ink-3: #7a8b97; --accent: #0d9f8a;
+    --line: rgba(14,26,36,0.08); --surface: rgba(255,255,255,0.72);
+    --display: "Fraunces", Georgia, serif; --sans: "Sora", system-ui, sans-serif;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    min-height: 100vh; font-family: var(--sans); color: var(--ink);
+    background:
+      radial-gradient(1100px 620px at 8% -10%, #c7f0e6 0%, transparent 58%),
+      radial-gradient(900px 560px at 96% 0%, #d5e3ff 0%, transparent 52%),
+      #eef2f5;
+  }
+  .site-nav {
+    display: flex; align-items: center; justify-content: space-between;
+    max-width: 980px; margin: 0 auto; padding: 18px 22px 0; font-size: 13px; font-weight: 600;
+  }
+  .site-nav .mark { font-family: var(--display); font-size: 18px; letter-spacing: -0.02em; }
+  .site-nav .mark em { font-style: normal; color: var(--accent); }
+  .site-nav .links { display: flex; gap: 18px; }
+  .site-nav a { color: var(--ink-3); text-decoration: none; text-transform: lowercase; }
+  .site-nav a.active, .site-nav a:hover { color: var(--ink); }
+  .shell { max-width: 980px; margin: 0 auto; padding: 20px 22px 96px; }
+  .brand { font-family: var(--display); font-weight: 700; font-size: clamp(42px, 8vw, 72px); letter-spacing: -0.045em; line-height: 0.95; }
+  .brand em { font-style: normal; color: var(--accent); }
+  .tagline { margin: 12px 0 36px; color: var(--ink-2); max-width: 40ch; line-height: 1.45; }
+  .soon {
+    background: var(--surface); border: 1px solid var(--line); border-radius: 22px;
+    padding: 48px 28px; text-align: center;
+  }
+  .soon .k {
+    display: inline-block; font-size: 11px; font-weight: 700; letter-spacing: 0.14em;
+    text-transform: uppercase; color: var(--accent); margin-bottom: 12px;
+  }
+  .soon h2 { font-family: var(--display); font-size: 28px; font-weight: 650; letter-spacing: -0.02em; }
+  .soon p { margin: 12px auto 0; max-width: 36ch; color: var(--ink-2); line-height: 1.5; }
+</style>
+</head>
+<body>
+  <nav class="site-nav">
+    <div class="mark">Dammi<em>’</em>s personal site</div>
+    <div class="links">
+      <a href="/finances">finances</a>
+      <a href="/coding">coding</a>
+      <a class="active" href="/servers">servers</a>
+      <a href="/logout">logout</a>
+    </div>
+  </nav>
+  <div class="shell">
+    <div class="brand">serv<em>e</em>rs</div>
+    <p class="tagline">Health checks and approved tasks for your machines — from one place.</p>
+    <div class="soon">
+      <div class="k">coming soon</div>
+      <h2>Control plane on the way</h2>
+      <p>Host status, uptime, and one-click tasks (restart, deploy, sync) will land here. Nothing to run yet.</p>
+    </div>
+  </div>
+</body>
+</html>

@@ -8,6 +8,7 @@ from plaid.model.link_token_create_request_user import LinkTokenCreateRequestUse
 from plaid.model.item_public_token_exchange_request import ItemPublicTokenExchangeRequest
 from plaid.model.products import Products
 from plaid.model.country_code import CountryCode
+from plaid.model.link_token_transactions import LinkTokenTransactions
 
 load_dotenv()
 config = plaid.Configuration(
@@ -15,7 +16,13 @@ config = plaid.Configuration(
     api_key={"clientId": os.environ["PLAID_CLIENT_ID"], "secret": os.environ["PLAID_SECRET"]},
 )
 client = plaid_api.PlaidApi(plaid.ApiClient(config))
-REDIRECT_URI = "https://false-stiffness-popular.ngrok-free.dev/oauth-return"
+REDIRECT_URI = os.environ.get(
+    "PLAID_REDIRECT_URI",
+    "https://false-stiffness-popular.ngrok-free.dev/oauth-return",
+)
+WEBHOOK_URL = os.environ.get("PLAID_WEBHOOK_URL")
+# Max history Plaid allows (24 months). Locked in at Item creation — re-link to change.
+DAYS_REQUESTED = 730
 
 app = Flask(__name__)
 stored_link_token = None  # holds token across the OAuth redirect
@@ -23,14 +30,18 @@ stored_link_token = None  # holds token across the OAuth redirect
 @app.route("/")
 def index():
     global stored_link_token
-    resp = client.link_token_create(LinkTokenCreateRequest(
+    kwargs = dict(
         user=LinkTokenCreateRequestUser(client_user_id="me"),
         client_name="Spending Tracker",
         products=[Products("transactions")],
         country_codes=[CountryCode("US")],
         language="en",
         redirect_uri=REDIRECT_URI,
-    ))
+        transactions=LinkTokenTransactions(days_requested=DAYS_REQUESTED),
+    )
+    if WEBHOOK_URL:
+        kwargs["webhook"] = WEBHOOK_URL
+    resp = client.link_token_create(LinkTokenCreateRequest(**kwargs))
     stored_link_token = resp.link_token
     return f"""
     <html><body>

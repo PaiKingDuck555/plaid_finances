@@ -1,0 +1,17 @@
+{
+  "permissions": {
+    "allow": [
+      "Skill(dataviz)",
+      "Skill(dataviz:*)",
+      "Bash(curl -s --max-time 5 \"http://127.0.0.1:8001/api/range\")",
+      "Bash(curl -s \"http://127.0.0.1:8001/api/summary?start=2026-06-04&end=2026-07-03\")",
+      "Bash(curl -s \"http://127.0.0.1:8001/api/transactions\")",
+      "Bash(python3 -c \"import json,sys; d=json.load\\(sys.stdin\\); print\\(len\\(d\\)\\); print\\(json.dumps\\(d[0], indent=1\\)\\)\")",
+      "Bash(curl -s \"http://127.0.0.1:8001/api/summary\")",
+      "Bash(python3 -c ' *)",
+      "Read(//Users/damodarpai/Library/Caches/ms-playwright/**)",
+      "Bash(python3 -c \"import playwright; print\\('py-playwright OK'\\)\")",
+      "Bash(npm ls *)"
+    ]
+  }
+}

@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>coding — Dammi’s personal site</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,650;9..144,700&family=Sora:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --ink: #0e1a24; --ink-2: #3d4f5c; --ink-3: #7a8b97; --accent: #0d9f8a;
+    --line: rgba(14,26,36,0.08); --surface: rgba(255,255,255,0.72);
+    --display: "Fraunces", Georgia, serif; --sans: "Sora", system-ui, sans-serif;
+    --c0: #ebedf0; --c1: #9be9a8; --c2: #40c463; --c3: #30a14e; --c4: #216e39;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    min-height: 100vh; font-family: var(--sans); color: var(--ink);
+    background:
+      radial-gradient(1100px 620px at 8% -10%, #c7f0e6 0%, transparent 58%),
+      radial-gradient(900px 560px at 96% 0%, #d5e3ff 0%, transparent 52%),
+      #eef2f5;
+  }
+  .site-nav {
+    display: flex; align-items: center; justify-content: space-between;
+    max-width: 980px; margin: 0 auto; padding: 18px 22px 0; font-size: 13px; font-weight: 600;
+  }
+  .site-nav .mark { font-family: var(--display); font-size: 18px; letter-spacing: -0.02em; }
+  .site-nav .mark em { font-style: normal; color: var(--accent); }
+  .site-nav .links { display: flex; gap: 18px; }
+  .site-nav a { color: var(--ink-3); text-decoration: none; text-transform: lowercase; }
+  .site-nav a.active, .site-nav a:hover { color: var(--ink); }
+  .shell { max-width: 980px; margin: 0 auto; padding: 20px 22px 96px; }
+  .brand { font-family: var(--display); font-weight: 700; font-size: clamp(42px, 8vw, 72px); letter-spacing: -0.045em; line-height: 0.95; }
+  .brand em { font-style: normal; color: var(--accent); }
+  .tagline { margin: 12px 0 32px; color: var(--ink-2); max-width: 40ch; line-height: 1.45; }
+  .stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 28px; }
+  @media (max-width: 720px) {
+    .stats { grid-template-columns: 1fr; }
+    .split { grid-template-columns: 1fr !important; }
+  }
+  .stat {
+    background: var(--surface); border: 1px solid var(--line); border-radius: 18px; padding: 18px 16px;
+  }
+  .stat .v { font-family: var(--display); font-size: 32px; font-weight: 700; letter-spacing: -0.03em; }
+  .stat .l { margin-top: 4px; font-size: 11px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: var(--ink-3); }
+  .graph-wrap {
+    overflow-x: auto; background: var(--surface); border: 1px solid var(--line);
+    border-radius: 22px; padding: 20px 16px 16px; margin-bottom: 28px;
+  }
+  .graph { display: grid; grid-auto-flow: column; grid-template-rows: repeat(7, 12px); gap: 3px; width: max-content; }
+  .cell { width: 12px; height: 12px; border-radius: 3px; background: var(--c0); }
+  .cell.l1 { background: var(--c1); } .cell.l2 { background: var(--c2); }
+  .cell.l3 { background: var(--c3); } .cell.l4 { background: var(--c4); }
+  .legend { display: flex; align-items: center; gap: 6px; margin-top: 14px; font-size: 12px; color: var(--ink-3); font-weight: 500; }
+  .legend .cell { width: 10px; height: 10px; }
+  .err { color: #b42318; font-weight: 600; margin-top: 12px; }
+
+  .split {
+    display: grid; grid-template-columns: 1.15fr 0.85fr; gap: 20px;
+  }
+  .panel {
+    background: var(--surface); border: 1px solid var(--line); border-radius: 22px;
+    padding: 20px 18px; min-height: 280px;
+  }
+  .panel h2 {
+    font-family: var(--display); font-size: 22px; font-weight: 650;
+    letter-spacing: -0.02em; margin-bottom: 14px;
+  }
+  .list { display: flex; flex-direction: column; gap: 2px; max-height: 420px; overflow: auto; }
+  .row {
+    display: grid; gap: 2px 10px; padding: 12px 4px;
+    border-bottom: 1px solid var(--line); text-decoration: none; color: inherit;
+  }
+  .row:last-child { border-bottom: 0; }
+  .row:hover .title { color: var(--accent); }
+  .title {
+    font-size: 14px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .meta { font-size: 12px; color: var(--ink-3); font-weight: 500; }
+  .sha {
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: 11px; font-weight: 700; color: var(--accent); margin-right: 6px;
+  }
+  .lang-dot {
+    display: inline-block; width: 8px; height: 8px; border-radius: 50%;
+    margin-right: 6px; vertical-align: middle;
+  }
+  .empty { color: var(--ink-3); font-size: 14px; padding: 12px 0; }
+  .hint { margin-top: 18px; font-size: 13px; color: var(--ink-3); }
+  .hint a { color: var(--accent); }
+</style>
+</head>
+<body>
+  <nav class="site-nav">
+    <div class="mark">Dammi<em>’</em>s personal site</div>
+    <div class="links">
+      <a href="/finances">finances</a>
+      <a class="active" href="/coding">coding</a>
+      <a href="/servers">servers</a>
+      <a href="/logout">logout</a>
+    </div>
+  </nav>
+  <div class="shell">
+    <div class="brand">cod<em>i</em>ng</div>
+    <p class="tagline">Your GitHub year — contributions, recent commits, and the repos you’ve been in.</p>
+    <div class="stats">
+      <div class="stat"><div class="v" id="total">—</div><div class="l">contributions</div></div>
+      <div class="stat"><div class="v" id="streak">—</div><div class="l">day streak</div></div>
+      <div class="stat"><div class="v" id="today">—</div><div class="l">today</div></div>
+    </div>
+    <div class="graph-wrap">
+      <div class="graph" id="graph"></div>
+      <div class="legend">
+        Less
+        <div class="cell"></div><div class="cell l1"></div><div class="cell l2"></div>
+        <div class="cell l3"></div><div class="cell l4"></div>
+        More
+      </div>
+      <div class="err" id="err" hidden></div>
+    </div>
+
+    <div class="split">
+      <section class="panel">
+        <h2>Recent commits</h2>
+        <div class="list" id="commits"></div>
+      </section>
+      <section class="panel">
+        <h2>Active repos</h2>
+        <div class="list" id="repos"></div>
+      </section>
+    </div>
+    <p class="hint">Cached ~1 hour. <a id="profile" href="#" target="_blank" rel="noopener">Open GitHub profile</a></p>
+  </div>
+<script>
+function relTime(iso) {
+  if (!iso) return "";
+  const t = new Date(iso).getTime();
+  const s = Math.round((Date.now() - t) / 1000);
+  if (s < 60) return "just now";
+  if (s < 3600) return Math.floor(s / 60) + "m ago";
+  if (s < 86400) return Math.floor(s / 3600) + "h ago";
+  if (s < 86400 * 14) return Math.floor(s / 86400) + "d ago";
+  return new Date(iso).toLocaleDateString("en-US", { month: "short", day: "numeric" });
+}
+
+async function boot() {
+  const res = await fetch("/api/coding");
+  if (res.status === 401) { location.href = "/login"; return; }
+  const data = await res.json();
+  if (data.error) {
+    document.getElementById("err").hidden = false;
+    document.getElementById("err").textContent = data.error;
+    return;
+  }
+  document.getElementById("total").textContent = data.total.toLocaleString();
+  document.getElementById("streak").textContent = data.streak;
+  document.getElementById("today").textContent = data.today;
+  if (data.profile_url) {
+    const a = document.getElementById("profile");
+    a.href = data.profile_url;
+  }
+  document.getElementById("graph").innerHTML = (data.days || []).map(d => {
+    const lvl = d.count === 0 ? 0 : d.count < 3 ? 1 : d.count < 6 ? 2 : d.count < 10 ? 3 : 4;
+    return `<div class="cell ${lvl ? "l"+lvl : ""}" title="${d.date}: ${d.count}"></div>`;
+  }).join("");
+
+  const commits = data.commits || [];
+  document.getElementById("commits").innerHTML = commits.length
+    ? commits.map(c => `
+        <a class="row" href="${c.url}" target="_blank" rel="noopener">
+          <div class="title"><span class="sha">${c.sha}</span>${c.message || "(no message)"}</div>
+          <div class="meta">${c.repo} · ${relTime(c.at)}</div>
+        </a>`).join("")
+    : `<div class="empty">No recent public pushes yet.</div>`;
+
+  const repos = data.repos || [];
+  document.getElementById("repos").innerHTML = repos.length
+    ? repos.map(r => {
+        const lang = r.language
+          ? `<span class="lang-dot" style="background:${r.language_color || "#999"}"></span>${r.language}`
+          : "No language";
+        return `
+        <a class="row" href="${r.url}" target="_blank" rel="noopener">
+          <div class="title">${r.full_name || r.name}</div>
+          <div class="meta">${lang} · pushed ${relTime(r.pushed_at)}${r.stars ? " · ★ " + r.stars : ""}</div>
+        </a>`;
+      }).join("")
+    : `<div class="empty">No public repos found.</div>`;
+}
+boot();
+</script>
+</body>
+</html>
