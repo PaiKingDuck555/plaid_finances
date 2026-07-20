@@ -71,7 +71,7 @@ SYNC_WEBHOOK_CODES = {
 TRANSFER_CATEGORIES = ("TRANSFER_IN", "TRANSFER_OUT")
 PUBLIC_ENDPOINTS = {
     "login", "login_github", "auth_github_callback", "logout",
-    "plaid_webhook", "static",
+    "plaid_webhook", "static", "healthz",
 }
 
 
@@ -112,6 +112,13 @@ def _guard():
     if request.path.startswith("/api/"):
         return jsonify({"error": "unauthorized"}), 401
     return redirect(url_for("login", next=request.path))
+
+
+# ——— Health (Render / load balancers) ———
+
+@app.route("/healthz")
+def healthz():
+    return "ok", 200
 
 
 # ——— Auth ———
