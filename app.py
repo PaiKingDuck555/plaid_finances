@@ -34,6 +34,11 @@ DAYS_REQUESTED = 730
 ALLOWED_GITHUB_LOGIN = (os.environ.get("ALLOWED_GITHUB_LOGIN") or "").strip().lstrip("@")
 GITHUB_CLIENT_ID = os.environ.get("GITHUB_CLIENT_ID")
 GITHUB_CLIENT_SECRET = os.environ.get("GITHUB_CLIENT_SECRET")
+BASE_URL = (os.environ.get("BASE_URL") or "").rstrip("/")
+GITHUB_CALLBACK_URL = (
+    os.environ.get("GITHUB_CALLBACK_URL")
+    or (f"{BASE_URL}/auth/github/callback" if BASE_URL else None)
+)
 AUTH_ENABLED = bool(GITHUB_CLIENT_ID and GITHUB_CLIENT_SECRET and ALLOWED_GITHUB_LOGIN)
 
 _plaid_config = plaid.Configuration(
@@ -156,7 +161,9 @@ background:#0e1a24;color:#f4fbf8;text-decoration:none}}
 def login_github():
     if not AUTH_ENABLED:
         return redirect(url_for("home"))
-    redirect_uri = url_for("auth_github_callback", _external=True)
+    # Prefer explicit BASE_URL so GitHub gets the public HTTPS callback
+    # (url_for(_external=True) can emit http:// or an internal host on Render).
+    redirect_uri = GITHUB_CALLBACK_URL or url_for("auth_github_callback", _external=True)
     return oauth.github.authorize_redirect(redirect_uri)
 
 
