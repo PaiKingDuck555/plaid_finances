@@ -7,6 +7,7 @@ from pathlib import Path
 from authlib.integrations.flask_client import OAuth
 from dotenv import load_dotenv
 from flask import Flask, jsonify, redirect, request, send_from_directory, session, url_for
+from werkzeug.middleware.proxy_fix import ProxyFix
 import plaid
 from plaid.api import plaid_api
 from plaid.model.country_code import CountryCode
@@ -34,11 +35,25 @@ DAYS_REQUESTED = 730
 ALLOWED_GITHUB_LOGIN = (os.environ.get("ALLOWED_GITHUB_LOGIN") or "").strip().lstrip("@")
 GITHUB_CLIENT_ID = os.environ.get("GITHUB_CLIENT_ID")
 GITHUB_CLIENT_SECRET = os.environ.get("GITHUB_CLIENT_SECRET")
-BASE_URL = (os.environ.get("BASE_URL") or "").rstrip("/")
-GITHUB_CALLBACK_URL = (
+
+
+def _normalize_base_url(url: str) -> str:
+    """Strip trailing slash; force https for public hosts (Render terminates TLS)."""
+    url = (url or "").strip().rstrip("/")
+    if not url:
+        return ""
+    if url.startswith("http://"):
+        url = "https://" + url[len("http://") :]
+    elif not url.startswith("https://"):
+        url = "https://" + url
+    return url
+
+
+BASE_URL = _normalize_base_url(os.environ.get("BASE_URL") or "")
+GITHUB_CALLBACK_URL = _normalize_base_url(
     os.environ.get("GITHUB_CALLBACK_URL")
-    or (f"{BASE_URL}/auth/github/callback" if BASE_URL else None)
-)
+    or (f"{BASE_URL}/auth/github/callback" if BASE_URL else "")
+) or None
 AUTH_ENABLED = bool(GITHUB_CLIENT_ID and GITHUB_CLIENT_SECRET and ALLOWED_GITHUB_LOGIN)
 
 _plaid_config = plaid.Configuration(
@@ -53,6 +68,10 @@ stored_link_token = None
 
 app = Flask(__name__)
 app.secret_key = os.environ.get("SECRET_KEY") or os.environ.get("PLAID_SECRET") or "dev-only-change-me"
+# Render terminates TLS and forwards http; trust X-Forwarded-* so callbacks use https.
+app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1)
+if BASE_URL:
+    app.config["PREFERRED_URL_SCHEME"] = "https"
 
 oauth = OAuth(app)
 if AUTH_ENABLED:
@@ -161,9 +180,12 @@ background:#0e1a24;color:#f4fbf8;text-decoration:none}}
 def login_github():
     if not AUTH_ENABLED:
         return redirect(url_for("home"))
-    # Prefer explicit BASE_URL so GitHub gets the public HTTPS callback
-    # (url_for(_external=True) can emit http:// or an internal host on Render).
-    redirect_uri = GITHUB_CALLBACK_URL or url_for("auth_github_callback", _external=True)
+    # Must match GitHub OAuth App "Authorization callback URL" exactly (https).
+    redirect_uri = GITHUB_CALLBACK_URL or url_for(
+        "auth_github_callback", _external=True, _scheme="https"
+    )
+    if redirect_uri.startswith("http://"):
+        redirect_uri = "https://" + redirect_uri[len("http://") :]
     return oauth.github.authorize_redirect(redirect_uri)
 
 
