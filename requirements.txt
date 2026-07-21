@@ -3,3 +3,10 @@ python-dotenv
 flask
 authlib
 requests
+gunicorn
+PyJWT>=2.8
+cryptography
+flask-socketio>=5.3
+simple-websocket>=1.0
+paramiko>=3.4
+PySocks>=1.7

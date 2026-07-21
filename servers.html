@@ -7,11 +7,14 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,650;9..144,700&family=Sora:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/xterm/5.3.0/xterm.min.css">
 <style>
   :root {
     --ink: #0e1a24; --ink-2: #3d4f5c; --ink-3: #7a8b97; --accent: #0d9f8a;
     --line: rgba(14,26,36,0.08); --surface: rgba(255,255,255,0.72);
+    --good: #16a34a; --warn: #d97706; --bad: #dc2626;
     --display: "Fraunces", Georgia, serif; --sans: "Sora", system-ui, sans-serif;
+    --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
   }
   * { box-sizing: border-box; margin: 0; padding: 0; }
   body {
@@ -33,17 +36,87 @@
   .shell { max-width: 980px; margin: 0 auto; padding: 20px 22px 96px; }
   .brand { font-family: var(--display); font-weight: 700; font-size: clamp(42px, 8vw, 72px); letter-spacing: -0.045em; line-height: 0.95; }
   .brand em { font-style: normal; color: var(--accent); }
-  .tagline { margin: 12px 0 36px; color: var(--ink-2); max-width: 40ch; line-height: 1.45; }
-  .soon {
+  .tagline { margin: 12px 0 32px; color: var(--ink-2); max-width: 42ch; line-height: 1.45; }
+
+  /* ── Machine card ── */
+  .card {
     background: var(--surface); border: 1px solid var(--line); border-radius: 22px;
-    padding: 48px 28px; text-align: center;
+    padding: 22px 22px; cursor: pointer; transition: transform .12s ease, box-shadow .12s ease;
   }
-  .soon .k {
-    display: inline-block; font-size: 11px; font-weight: 700; letter-spacing: 0.14em;
-    text-transform: uppercase; color: var(--accent); margin-bottom: 12px;
+  .card:hover { transform: translateY(-2px); box-shadow: 0 14px 40px rgba(14,26,36,0.09); }
+  .card.open { cursor: default; }
+  .card.open:hover { transform: none; box-shadow: none; }
+  .card-head { display: flex; align-items: center; gap: 14px; }
+  .avatar {
+    width: 46px; height: 46px; border-radius: 14px; display: grid; place-items: center;
+    background: linear-gradient(135deg, #0e1a24, #22404f); color: #eafff9; font-size: 22px; flex: none;
   }
-  .soon h2 { font-family: var(--display); font-size: 28px; font-weight: 650; letter-spacing: -0.02em; }
-  .soon p { margin: 12px auto 0; max-width: 36ch; color: var(--ink-2); line-height: 1.5; }
+  .card-title { flex: 1; min-width: 0; }
+  .card-title h2 { font-family: var(--display); font-size: 22px; font-weight: 650; letter-spacing: -0.02em; }
+  .card-title .sub { font-size: 12.5px; color: var(--ink-3); font-weight: 500; margin-top: 2px; }
+  .status { display: inline-flex; align-items: center; gap: 7px; font-size: 12px; font-weight: 600; color: var(--ink-2); }
+  .dot { width: 9px; height: 9px; border-radius: 50%; background: var(--ink-3); flex: none; }
+  .dot.on { background: var(--good); box-shadow: 0 0 0 4px rgba(22,163,74,0.16); }
+  .dot.off { background: var(--bad); box-shadow: 0 0 0 4px rgba(220,38,38,0.14); }
+  .dot.wait { background: var(--warn); animation: pulse 1s infinite; }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.35} }
+
+  .stats { display: grid; grid-template-columns: repeat(6, 1fr); gap: 10px; margin-top: 20px; }
+  .stat { background: rgba(255,255,255,0.5); border: 1px solid var(--line); border-radius: 14px; padding: 12px 12px; }
+  .stat .v { font-family: var(--display); font-size: 24px; font-weight: 700; letter-spacing: -0.02em; line-height: 1; }
+  .stat .v small { font-size: 13px; font-weight: 600; color: var(--ink-3); }
+  .stat .l { margin-top: 6px; font-size: 10px; font-weight: 700; letter-spacing: 0.09em; text-transform: uppercase; color: var(--ink-3); }
+  .bar { height: 4px; border-radius: 3px; background: var(--line); margin-top: 8px; overflow: hidden; }
+  .bar > span { display: block; height: 100%; background: var(--accent); border-radius: 3px; transition: width .4s ease; }
+  .bar.warn > span { background: var(--warn); } .bar.bad > span { background: var(--bad); }
+  .hint-open { margin-top: 16px; font-size: 12.5px; color: var(--ink-3); font-weight: 500; }
+  .hint-open b { color: var(--accent); }
+
+  /* ── Console (revealed on click) ── */
+  .console { margin-top: 22px; display: none; }
+  .console.show { display: block; }
+  .console-grid { display: grid; grid-template-columns: 1.35fr 0.85fr; gap: 18px; }
+  @media (max-width: 820px) {
+    .stats { grid-template-columns: repeat(3, 1fr); }
+    .console-grid { grid-template-columns: 1fr; }
+  }
+  .panel { background: var(--surface); border: 1px solid var(--line); border-radius: 18px; padding: 16px; }
+  .panel-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
+  .panel-head h3 { font-family: var(--display); font-size: 18px; font-weight: 650; letter-spacing: -0.01em; }
+  .btn {
+    font: 600 12.5px var(--sans); border: 1px solid var(--line); background: #fff; color: var(--ink);
+    border-radius: 999px; padding: 7px 14px; cursor: pointer; text-decoration: none; display: inline-flex; align-items: center; gap: 6px;
+  }
+  .btn:hover { border-color: var(--accent); color: var(--accent); }
+  .btn.dark { background: #0e1a24; color: #f4fbf8; border-color: #0e1a24; }
+  .btn.dark:hover { background: #16303c; color: #fff; }
+  #terminal { height: 420px; background: #111; padding: 10px; border-radius: 12px; }
+  .term-status { font-size: 12px; color: var(--ink-3); font-weight: 500; }
+
+  /* file browser */
+  .crumbs { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; font-size: 12.5px; margin-bottom: 10px; color: var(--ink-3); font-family: var(--mono); }
+  .crumbs a { color: var(--accent); text-decoration: none; cursor: pointer; }
+  .crumbs span.sep { color: var(--ink-3); }
+  .files { display: flex; flex-direction: column; max-height: 360px; overflow: auto; margin: 0 -6px; }
+  .frow { display: flex; align-items: center; gap: 10px; padding: 9px 6px; border-bottom: 1px solid var(--line); font-size: 13px; }
+  .frow:last-child { border-bottom: 0; }
+  .frow .ic { width: 18px; text-align: center; flex: none; }
+  .frow .nm { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .frow.dir .nm { cursor: pointer; font-weight: 600; }
+  .frow.dir .nm:hover { color: var(--accent); }
+  .frow .sz { font-size: 11.5px; color: var(--ink-3); font-family: var(--mono); flex: none; }
+  .frow .dl { color: var(--ink-3); text-decoration: none; flex: none; font-size: 15px; }
+  .frow .dl:hover { color: var(--accent); }
+  .dropzone {
+    margin-top: 12px; border: 1.5px dashed var(--line); border-radius: 12px; padding: 16px;
+    text-align: center; font-size: 12.5px; color: var(--ink-3); cursor: pointer; transition: .12s;
+  }
+  .dropzone:hover, .dropzone.drag { border-color: var(--accent); color: var(--accent); background: rgba(13,159,138,0.05); }
+  .empty { color: var(--ink-3); font-size: 13px; padding: 14px 6px; }
+  .banner { font-size: 12.5px; padding: 9px 12px; border-radius: 10px; margin-bottom: 10px; display: none; }
+  .banner.show { display: block; }
+  .banner.err { background: rgba(220,38,38,0.1); color: #991b1b; }
+  .banner.ok { background: rgba(22,163,74,0.12); color: #14532d; }
 </style>
 </head>
 <body>
@@ -58,12 +131,253 @@
   </nav>
   <div class="shell">
     <div class="brand">serv<em>e</em>rs</div>
-    <p class="tagline">Health checks and approved tasks for your machines — from one place.</p>
-    <div class="soon">
-      <div class="k">coming soon</div>
-      <h2>Control plane on the way</h2>
-      <p>Host status, uptime, and one-click tasks (restart, deploy, sync) will land here. Nothing to run yet.</p>
+    <p class="tagline">Health, a live shell, and file transfer for your machines — from one place.</p>
+
+    <div class="card" id="piCard">
+      <div class="card-head">
+        <div class="avatar">🍓</div>
+        <div class="card-title">
+          <h2 id="piName">Raspberry Pi 5</h2>
+          <div class="sub" id="piSub">100.119.49.95 · dammi</div>
+        </div>
+        <div class="status"><span class="dot wait" id="piDot"></span><span id="piState">checking…</span></div>
+      </div>
+
+      <div class="stats">
+        <div class="stat"><div class="v" id="sCpu">—</div><div class="l">cpu</div><div class="bar" id="bCpu"><span></span></div></div>
+        <div class="stat"><div class="v" id="sTemp">—</div><div class="l">temp</div><div class="bar" id="bTemp"><span></span></div></div>
+        <div class="stat"><div class="v" id="sMem">—</div><div class="l">memory</div><div class="bar" id="bMem"><span></span></div></div>
+        <div class="stat"><div class="v" id="sDisk">—</div><div class="l">disk</div><div class="bar" id="bDisk"><span></span></div></div>
+        <div class="stat"><div class="v" id="sLoad">—</div><div class="l">load</div></div>
+        <div class="stat"><div class="v" id="sUp">—</div><div class="l">uptime</div></div>
+      </div>
+      <div class="hint-open" id="piHint"><b>Click</b> to open the console — live shell &amp; files.</div>
+    </div>
+
+    <div class="console" id="console">
+      <div class="console-grid">
+        <section class="panel">
+          <div class="panel-head">
+            <h3>Terminal</h3>
+            <span class="term-status" id="termStatus">connecting…</span>
+          </div>
+          <div id="terminal"></div>
+          <div style="margin-top:10px; display:flex; gap:8px">
+            <button class="btn dark" id="reconnectBtn">Reconnect</button>
+            <span class="term-status" style="align-self:center">Type anything — you’re on the Pi as <b>dammi</b>.</span>
+          </div>
+        </section>
+
+        <section class="panel">
+          <div class="panel-head">
+            <h3>Files</h3>
+            <button class="btn" id="refreshFiles">↻ refresh</button>
+          </div>
+          <div class="banner" id="fileBanner"></div>
+          <div class="crumbs" id="crumbs"></div>
+          <div class="files" id="files"><div class="empty">Loading…</div></div>
+          <label class="dropzone" id="dropzone">
+            <input type="file" id="fileInput" hidden multiple>
+            ⬆ Drop files here or click to upload to this folder
+          </label>
+        </section>
+      </div>
     </div>
   </div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xterm/5.3.0/xterm.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xterm-addon-fit/0.8.0/xterm-addon-fit.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.5/socket.io.min.js"></script>
+<script>
+// ─── helpers ───
+function fmtBytesKb(kb) {
+  if (!kb) return "0";
+  const b = kb * 1024, u = ["B","KB","MB","GB","TB"];
+  let i = 0, v = b;
+  while (v >= 1024 && i < u.length - 1) { v /= 1024; i++; }
+  return (v >= 10 || i === 0 ? Math.round(v) : v.toFixed(1)) + u[i];
+}
+function fmtUptime(s) {
+  if (!s) return "—";
+  const d = Math.floor(s / 86400), h = Math.floor((s % 86400) / 3600), m = Math.floor((s % 3600) / 60);
+  if (d) return d + "d " + h + "h";
+  if (h) return h + "h " + m + "m";
+  return m + "m";
+}
+function setBar(id, pct) {
+  const bar = document.getElementById(id), span = bar.querySelector("span");
+  span.style.width = Math.min(pct || 0, 100) + "%";
+  bar.classList.toggle("warn", pct >= 70 && pct < 90);
+  bar.classList.toggle("bad", pct >= 90);
+}
+
+// ─── health polling ───
+let healthTimer = null;
+async function pollHealth() {
+  try {
+    const res = await fetch("/api/servers/pi/health");
+    if (res.status === 401) { location.href = "/login"; return; }
+    const d = await res.json();
+    const dot = document.getElementById("piDot"), state = document.getElementById("piState");
+    if (!d.reachable) {
+      dot.className = "dot off";
+      state.textContent = d.configured === false ? "not configured" : "offline";
+      document.getElementById("piHint").textContent = d.error || "Can’t reach the Pi.";
+      ["sCpu","sTemp","sMem","sDisk","sLoad","sUp"].forEach(i => document.getElementById(i).textContent = "—");
+      return;
+    }
+    dot.className = "dot on";
+    state.textContent = "online";
+    if (d.model) document.getElementById("piName").textContent = d.model.trim();
+    if (d.hostname) document.getElementById("piSub").textContent =
+      (window.__piIp || "100.119.49.95") + " · " + d.hostname;
+
+    document.getElementById("sCpu").innerHTML = d.cpu_percent + "<small>%</small>";
+    setBar("bCpu", d.cpu_percent);
+    if (d.temp_c != null) {
+      document.getElementById("sTemp").innerHTML = d.temp_c + "<small>°C</small>";
+      setBar("bTemp", (d.temp_c / 85) * 100);
+    } else document.getElementById("sTemp").textContent = "n/a";
+    document.getElementById("sMem").innerHTML = d.mem_percent + "<small>%</small>";
+    setBar("bMem", d.mem_percent);
+    document.getElementById("sDisk").innerHTML = d.disk_percent + "<small>%</small>";
+    setBar("bDisk", d.disk_percent);
+    document.getElementById("sLoad").textContent = (d.loadavg || "—").split(" ")[0];
+    document.getElementById("sUp").textContent = fmtUptime(d.uptime_seconds);
+  } catch (e) {
+    document.getElementById("piDot").className = "dot off";
+    document.getElementById("piState").textContent = "offline";
+  }
+}
+pollHealth();
+healthTimer = setInterval(pollHealth, 4000);
+
+// ─── open/close console ───
+let consoleOpen = false, term = null, fit = null, socket = null;
+document.getElementById("piCard").addEventListener("click", (e) => {
+  if (e.target.closest("#console")) return; // clicks inside the console shouldn't toggle
+  if (consoleOpen) return;
+  consoleOpen = true;
+  document.getElementById("piCard").classList.add("open");
+  document.getElementById("piHint").style.display = "none";
+  document.getElementById("console").classList.add("show");
+  startTerminal();
+  loadFiles();
+});
+
+// ─── terminal ───
+function startTerminal() {
+  if (!term) {
+    term = new Terminal({
+      cursorBlink: true,
+      fontFamily: "ui-monospace, Menlo, Consolas, monospace",
+      fontSize: 13,
+      theme: { background: "#111111" }
+    });
+    fit = new FitAddon.FitAddon();
+    term.loadAddon(fit);
+    term.open(document.getElementById("terminal"));
+    fit.fit();
+    term.onData(d => socket && socket.emit("input", d));
+    window.addEventListener("resize", () => {
+      if (!consoleOpen) return;
+      fit.fit();
+      socket && socket.emit("resize", { cols: term.cols, rows: term.rows });
+    });
+  }
+  connectSocket();
+}
+function connectSocket() {
+  const st = document.getElementById("termStatus");
+  if (socket) { try { socket.close(); } catch (e) {} }
+  st.textContent = "connecting…";
+  socket = io("/terminal", { transports: ["websocket", "polling"] });
+  socket.on("connect", () => {
+    st.textContent = "connected";
+    socket.emit("resize", { cols: term.cols, rows: term.rows });
+  });
+  socket.on("output", d => term.write(d));
+  socket.on("connect_error", () => { st.textContent = "not authorized"; term.write("\r\n[not authorized]\r\n"); });
+  socket.on("disconnect", () => { st.textContent = "disconnected"; term.write("\r\n[disconnected]\r\n"); });
+}
+document.getElementById("reconnectBtn").addEventListener("click", () => {
+  term.reset();
+  connectSocket();
+});
+
+// ─── file browser ───
+let curPath = null, homePath = null;
+const banner = document.getElementById("fileBanner");
+function showBanner(msg, kind) {
+  banner.textContent = msg;
+  banner.className = "banner show " + kind;
+  if (kind === "ok") setTimeout(() => banner.className = "banner", 3000);
+}
+function renderCrumbs() {
+  const el = document.getElementById("crumbs");
+  if (!curPath) { el.innerHTML = ""; return; }
+  const parts = curPath.split("/").filter(Boolean);
+  let acc = "";
+  const links = parts.map((p, i) => {
+    acc += "/" + p;
+    const full = acc;
+    return `<a data-path="${full}">${p}</a>`;
+  });
+  el.innerHTML = "<a data-path='" + (homePath || "/") + "'>~</a>" +
+    (links.length ? " <span class='sep'>/</span> " : "") +
+    links.join(" <span class='sep'>/</span> ");
+  el.querySelectorAll("a").forEach(a => a.onclick = () => loadFiles(a.dataset.path));
+}
+async function loadFiles(path) {
+  const el = document.getElementById("files");
+  el.innerHTML = "<div class='empty'>Loading…</div>";
+  try {
+    const res = await fetch("/api/servers/pi/files" + (path ? "?path=" + encodeURIComponent(path) : ""));
+    const d = await res.json();
+    if (d.error) { el.innerHTML = "<div class='empty'>" + d.error + "</div>"; return; }
+    curPath = d.path; homePath = d.home || homePath;
+    renderCrumbs();
+    let rows = "";
+    if (d.parent != null && d.path !== d.home) {
+      rows += `<div class="frow dir"><span class="ic">📁</span><span class="nm" data-path="${d.parent}">..</span><span class="sz"></span><span class="dl"></span></div>`;
+    }
+    if (!d.entries.length && !rows) { el.innerHTML = "<div class='empty'>Empty folder.</div>"; return; }
+    rows += d.entries.map(en => {
+      if (en.is_dir) {
+        return `<div class="frow dir"><span class="ic">📁</span><span class="nm" data-path="${en.path}">${en.name}</span><span class="sz"></span><span class="dl"></span></div>`;
+      }
+      const url = "/api/servers/pi/download?path=" + encodeURIComponent(en.path);
+      return `<div class="frow"><span class="ic">📄</span><span class="nm" title="${en.name}">${en.name}</span><span class="sz">${fmtBytesKb(Math.ceil(en.size/1024))}</span><a class="dl" href="${url}" title="Download">⬇</a></div>`;
+    }).join("");
+    el.innerHTML = rows;
+    el.querySelectorAll(".frow.dir .nm").forEach(n => n.onclick = () => loadFiles(n.dataset.path));
+  } catch (e) {
+    el.innerHTML = "<div class='empty'>Failed to load files.</div>";
+  }
+}
+document.getElementById("refreshFiles").addEventListener("click", () => loadFiles(curPath));
+
+// upload
+const dz = document.getElementById("dropzone"), fileInput = document.getElementById("fileInput");
+async function uploadFiles(fileList) {
+  for (const file of fileList) {
+    const fd = new FormData();
+    fd.append("file", file);
+    if (curPath) fd.append("path", curPath);
+    showBanner("Uploading " + file.name + "…", "ok");
+    try {
+      const res = await fetch("/api/servers/pi/upload", { method: "POST", body: fd });
+      const d = await res.json();
+      if (d.error) showBanner("Upload failed: " + d.error, "err");
+      else showBanner("Uploaded " + file.name, "ok");
+    } catch (e) { showBanner("Upload failed.", "err"); }
+  }
+  loadFiles(curPath);
+}
+fileInput.addEventListener("change", () => { if (fileInput.files.length) uploadFiles(fileInput.files); fileInput.value = ""; });
+["dragenter","dragover"].forEach(ev => dz.addEventListener(ev, e => { e.preventDefault(); dz.classList.add("drag"); }));
+["dragleave","drop"].forEach(ev => dz.addEventListener(ev, e => { e.preventDefault(); dz.classList.remove("drag"); }));
+dz.addEventListener("drop", e => { if (e.dataTransfer.files.length) uploadFiles(e.dataTransfer.files); });
+</script>
 </body>
 </html>

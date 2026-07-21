@@ -1,12 +1,18 @@
+import hashlib
+import hmac
 import os
 import re
 import threading
+import time
 from functools import wraps
 from pathlib import Path
 
 from authlib.integrations.flask_client import OAuth
 from dotenv import load_dotenv
-from flask import Flask, jsonify, redirect, request, send_from_directory, session, url_for
+from flask import Flask, Response, jsonify, redirect, request, send_from_directory, session, stream_with_context, url_for
+from flask_socketio import SocketIO
+from jwt import PyJWK, decode as jwt_decode, get_unverified_header
+from jwt.exceptions import PyJWTError
 from werkzeug.middleware.proxy_fix import ProxyFix
 import plaid
 from plaid.api import plaid_api
@@ -17,15 +23,21 @@ from plaid.model.link_token_create_request import LinkTokenCreateRequest
 from plaid.model.link_token_create_request_user import LinkTokenCreateRequestUser
 from plaid.model.link_token_transactions import LinkTokenTransactions
 from plaid.model.products import Products
+from plaid.model.webhook_verification_key_get_request import WebhookVerificationKeyGetRequest
 
 from coding import fetch_contributions
 from db import get_conn, init_db
+import pi
 import sync
+from terminal import init_terminal
 
 load_dotenv()
 init_db()
 
 ENV_PATH = Path(__file__).resolve().parent / ".env"
+DATABASE_PATH = Path(os.environ.get("DATABASE_PATH", "transactions.db")).resolve()
+# Survives Render/Fly restarts when DATABASE_PATH is on a persistent disk.
+ACCESS_TOKEN_PATH = DATABASE_PATH.parent / "plaid_access_token"
 REDIRECT_URI = os.environ.get(
     "PLAID_REDIRECT_URI",
     "https://false-stiffness-popular.ngrok-free.dev/oauth-return",
@@ -33,8 +45,16 @@ REDIRECT_URI = os.environ.get(
 WEBHOOK_URL = os.environ.get("PLAID_WEBHOOK_URL")
 DAYS_REQUESTED = 730
 ALLOWED_GITHUB_LOGIN = (os.environ.get("ALLOWED_GITHUB_LOGIN") or "").strip().lstrip("@")
+# Optional: pin to the immutable numeric GitHub user id so a renamed/freed
+# username can't be re-registered by an attacker to slip past the allowlist.
+ALLOWED_GITHUB_ID = (os.environ.get("ALLOWED_GITHUB_ID") or "").strip()
 GITHUB_CLIENT_ID = os.environ.get("GITHUB_CLIENT_ID")
 GITHUB_CLIENT_SECRET = os.environ.get("GITHUB_CLIENT_SECRET")
+IS_PRODUCTION = bool(
+    os.environ.get("RENDER")
+    or os.environ.get("FLY_APP_NAME")
+    or os.environ.get("PRODUCTION")
+)
 
 
 def _normalize_base_url(url: str) -> str:
@@ -65,13 +85,29 @@ _plaid_config = plaid.Configuration(
 )
 plaid_client = plaid_api.PlaidApi(plaid.ApiClient(_plaid_config))
 stored_link_token = None
+_webhook_keys: dict[str, dict] = {}
 
 app = Flask(__name__)
-app.secret_key = os.environ.get("SECRET_KEY") or os.environ.get("PLAID_SECRET") or "dev-only-change-me"
+_secret = os.environ.get("SECRET_KEY")
+if not _secret:
+    if AUTH_ENABLED or IS_PRODUCTION:
+        raise RuntimeError("SECRET_KEY must be set when auth or production is enabled")
+    _secret = "dev-only-change-me"
+app.secret_key = _secret
+app.config.update(
+    SESSION_COOKIE_HTTPONLY=True,
+    SESSION_COOKIE_SAMESITE="Lax",
+    SESSION_COOKIE_SECURE=IS_PRODUCTION or bool(BASE_URL),
+)
 # Render terminates TLS and forwards http; trust X-Forwarded-* so callbacks use https.
 app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1)
 if BASE_URL:
     app.config["PREFERRED_URL_SCHEME"] = "https"
+
+# Same-origin Socket.IO (empty allowed origins). Powers the web terminal that
+# bridges the browser to the Pi's shell over the Tailscale SOCKS5 proxy.
+socketio = SocketIO(app, async_mode="threading", cors_allowed_origins=[])
+init_terminal(socketio)
 
 oauth = OAuth(app)
 if AUTH_ENABLED:
@@ -99,15 +135,97 @@ PUBLIC_ENDPOINTS = {
 }
 
 
+def _safe_next_url(candidate: str | None) -> str:
+    """Only allow same-origin relative paths (block open redirects)."""
+    if not candidate or not candidate.startswith("/"):
+        return "/"
+    # Browsers treat backslashes as slashes, so "/\evil.com" and "//evil.com"
+    # both become protocol-relative redirects. Reject anything but a clean path.
+    if candidate.startswith("//") or "\\" in candidate or "\r" in candidate or "\n" in candidate:
+        return "/"
+    return candidate
+
+
 def _write_env_access_token(token: str):
     text = ENV_PATH.read_text() if ENV_PATH.exists() else ""
     if re.search(r"^PLAID_ACCESS_TOKEN=.*$", text, flags=re.M):
         text = re.sub(r"^PLAID_ACCESS_TOKEN=.*$", f"PLAID_ACCESS_TOKEN={token}", text, flags=re.M)
     else:
         text = text.rstrip() + f"\nPLAID_ACCESS_TOKEN={token}\n"
-    ENV_PATH.write_text(text)
+    try:
+        ENV_PATH.write_text(text)
+    except OSError as e:
+        print(f"could not write .env access token: {e}")
+    try:
+        ACCESS_TOKEN_PATH.parent.mkdir(parents=True, exist_ok=True)
+        ACCESS_TOKEN_PATH.write_text(token)
+    except OSError as e:
+        print(f"could not write persisted access token: {e}")
     os.environ["PLAID_ACCESS_TOKEN"] = token
     sync.set_access_token(token)
+
+
+def _load_persisted_access_token():
+    if not ACCESS_TOKEN_PATH.exists():
+        return
+    try:
+        token = ACCESS_TOKEN_PATH.read_text().strip()
+    except OSError:
+        return
+    if token:
+        os.environ["PLAID_ACCESS_TOKEN"] = token
+        sync.set_access_token(token)
+
+
+def _get_webhook_key(kid: str) -> dict | None:
+    cached = _webhook_keys.get(kid)
+    if cached:
+        return cached
+    try:
+        resp = plaid_client.webhook_verification_key_get(
+            WebhookVerificationKeyGetRequest(key_id=kid)
+        )
+        key_obj = getattr(resp, "key", None)
+        key = key_obj.to_dict() if key_obj is not None else (resp.to_dict().get("key") or {})
+        if key.get("expired_at"):
+            return None
+        # Drop non-JWK fields before caching
+        key = {k: v for k, v in key.items() if k in ("kty", "crv", "x", "y", "kid", "use", "alg") and v is not None}
+        _webhook_keys[kid] = key
+        return key
+    except Exception as e:
+        print(f"webhook key fetch failed: {e}")
+        return None
+
+
+def _verify_plaid_webhook(raw_body: bytes) -> bool:
+    """Verify Plaid-Verification JWT + body SHA-256 (reject forgeries / replays)."""
+    signed_jwt = request.headers.get("Plaid-Verification")
+    if not signed_jwt:
+        return False
+    try:
+        header = get_unverified_header(signed_jwt)
+    except PyJWTError:
+        return False
+    if header.get("alg") != "ES256" or not header.get("kid"):
+        return False
+    key = _get_webhook_key(header["kid"])
+    if not key:
+        return False
+    try:
+        claims = jwt_decode(
+            signed_jwt,
+            PyJWK.from_dict(key).key,
+            algorithms=["ES256"],
+            options={"require": ["iat", "request_body_sha256"]},
+        )
+    except PyJWTError:
+        _webhook_keys.pop(header["kid"], None)
+        return False
+    if claims["iat"] < time.time() - 5 * 60:
+        return False
+    body_hash = hashlib.sha256(raw_body).hexdigest()
+    return hmac.compare_digest(body_hash, claims["request_body_sha256"])
 
 
 def login_required(view):
@@ -121,6 +239,18 @@ def login_required(view):
             return jsonify({"error": "unauthorized"}), 401
         return redirect(url_for("login", next=request.path))
     return wrapped
+
+
+@app.after_request
+def _security_headers(resp):
+    resp.headers.setdefault("X-Content-Type-Options", "nosniff")
+    resp.headers.setdefault("X-Frame-Options", "DENY")
+    resp.headers.setdefault("Referrer-Policy", "no-referrer")
+    if IS_PRODUCTION or BASE_URL:
+        resp.headers.setdefault(
+            "Strict-Transport-Security", "max-age=31536000; includeSubDomains"
+        )
+    return resp
 
 
 @app.before_request
@@ -197,7 +327,12 @@ def auth_github_callback():
     resp = oauth.github.get("user", token=token)
     profile = resp.json()
     login_name = profile.get("login") or ""
-    if login_name != ALLOWED_GITHUB_LOGIN:
+    login_id = str(profile.get("id") or "")
+    # GitHub usernames are case-insensitive; compare accordingly.
+    login_ok = login_name.lower() == ALLOWED_GITHUB_LOGIN.lower()
+    # If an id is pinned, it must match too (defeats username-reuse attacks).
+    id_ok = (not ALLOWED_GITHUB_ID) or (login_id == ALLOWED_GITHUB_ID)
+    if not (login_ok and id_ok):
         session.clear()
         return (
             f"<html><body style='font-family:system-ui;padding:2rem'>"
@@ -205,9 +340,13 @@ def auth_github_callback():
             f"<a href='/login'>try again</a></body></html>",
             403,
         )
-    session["github_login"] = login_name
-    session["github_token"] = token.get("access_token")
-    return redirect(request.args.get("next") or url_for("home"))
+    session["github_login"] = ALLOWED_GITHUB_LOGIN
+    # Store the immutable numeric id so the /terminal socket can re-verify the
+    # owner (the OAuth page gate alone doesn't protect a raw socket connection).
+    session["github_id"] = login_id
+    # Do not store OAuth access tokens in the cookie session (signed, not encrypted).
+    session.pop("github_token", None)
+    return redirect(_safe_next_url(request.args.get("next")))
 
 
 @app.route("/logout")
@@ -262,6 +401,9 @@ def table():
 
 @app.route("/plaid/webhook", methods=["POST"])
 def plaid_webhook():
+    raw_body = request.get_data(cache=True)
+    if not _verify_plaid_webhook(raw_body):
+        return jsonify({"error": "invalid webhook signature"}), 401
     payload = request.get_json(force=True, silent=True) or {}
     webhook_type = payload.get("webhook_type")
     webhook_code = payload.get("webhook_code")
@@ -379,7 +521,8 @@ def exchange():
             except Exception as e:
                 print(f"old item remove skipped: {e}")
         stats = sync.reset_and_sync()
-        return jsonify({"access_token": new_token, "stats": stats, "days_requested": DAYS_REQUESTED})
+        # Never return Plaid access tokens to the browser.
+        return jsonify({"ok": True, "stats": stats, "days_requested": DAYS_REQUESTED})
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
@@ -469,14 +612,82 @@ def api_summary():
 @app.route("/api/coding")
 def api_coding():
     login = session.get("github_login") or ALLOWED_GITHUB_LOGIN
-    token = session.get("github_token") or os.environ.get("GITHUB_TOKEN")
+    token = os.environ.get("GITHUB_TOKEN")
     if not login:
         return jsonify({"error": "Set ALLOWED_GITHUB_LOGIN (and sign in) to load coding."})
     if not token:
         return jsonify({
-            "error": "Sign in with GitHub (or set GITHUB_TOKEN) to load your contribution graph."
+            "error": "Set GITHUB_TOKEN (a PAT) as an env var to load your contribution graph."
         })
     return jsonify(fetch_contributions(token, login))
+
+
+# ——— Servers: Raspberry Pi (behind the same OAuth gate) ———
+
+@app.route("/api/servers/pi/health")
+def api_pi_health():
+    if not pi.is_configured():
+        return jsonify({
+            "reachable": False,
+            "configured": False,
+            "error": "Pi not configured. Set PI_TAILSCALE_IP, PI_SSH_USER and PI_SSH_PASSWORD.",
+        })
+    data = pi.get_health()
+    data["configured"] = True
+    return jsonify(data)
+
+
+@app.route("/api/servers/pi/files")
+def api_pi_files():
+    try:
+        return jsonify(pi.list_dir(request.args.get("path")))
+    except ValueError as e:
+        return jsonify({"error": str(e)}), 400
+    except Exception as e:  # noqa: BLE001
+        return jsonify({"error": str(e)}), 502
+
+
+@app.route("/api/servers/pi/download")
+def api_pi_download():
+    path = request.args.get("path")
+    if not path:
+        return jsonify({"error": "missing path"}), 400
+    try:
+        filename, size, stream, closer = pi.open_download(path)
+    except ValueError as e:
+        return jsonify({"error": str(e)}), 400
+    except Exception as e:  # noqa: BLE001
+        return jsonify({"error": str(e)}), 502
+
+    @stream_with_context
+    def generate():
+        try:
+            while True:
+                chunk = stream.read(65536)
+                if not chunk:
+                    break
+                yield chunk
+        finally:
+            closer()
+
+    headers = {
+        "Content-Disposition": f'attachment; filename="{filename}"',
+        "Content-Length": str(size),
+    }
+    return Response(generate(), mimetype="application/octet-stream", headers=headers)
+
+
+@app.route("/api/servers/pi/upload", methods=["POST"])
+def api_pi_upload():
+    f = request.files.get("file")
+    if not f:
+        return jsonify({"error": "missing file"}), 400
+    try:
+        return jsonify(pi.upload(request.form.get("path"), f.filename, f.stream))
+    except ValueError as e:
+        return jsonify({"error": str(e)}), 400
+    except Exception as e:  # noqa: BLE001
+        return jsonify({"error": str(e)}), 502
 
 
 TABLE_HTML = """<!doctype html>
@@ -521,15 +732,32 @@ document.getElementById("search").addEventListener("input", render); load();
 """
 
 
-if __name__ == "__main__":
+def _startup():
     print(f"auth enabled: {AUTH_ENABLED}")
+    _load_persisted_access_token()
     if WEBHOOK_URL:
         try:
             sync.register_webhook(WEBHOOK_URL)
         except Exception as e:
             print(f"webhook register skipped: {e}")
+    if os.environ.get("SKIP_STARTUP_SYNC") == "1":
+        return
     try:
         sync.run()
     except Exception as e:
         print(f"startup sync skipped: {e}")
-    app.run(host="0.0.0.0", port=int(os.environ.get("PORT", "8001")), debug=True, use_reloader=False)
+
+
+_startup()
+
+if __name__ == "__main__":
+    # Local only — production uses gunicorn (debug off).
+    debug = os.environ.get("FLASK_DEBUG", "0") == "1"
+    socketio.run(
+        app,
+        host="0.0.0.0",
+        port=int(os.environ.get("PORT", "8001")),
+        debug=debug,
+        use_reloader=False,
+        allow_unsafe_werkzeug=True,
+    )
