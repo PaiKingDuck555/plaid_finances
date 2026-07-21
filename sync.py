@@ -1,5 +1,6 @@
 import json
 import os
+from datetime import datetime, timezone
 from dotenv import load_dotenv
 import plaid
 from plaid.api import plaid_api
@@ -19,9 +20,11 @@ def get_cursor(conn):
     return row["cursor"] if row else None
 
 def save_cursor(conn, cursor):
+    now = datetime.now(timezone.utc).isoformat()
     conn.execute(
-        "INSERT INTO sync_state (item, cursor) VALUES ('main', ?) "
-        "ON CONFLICT(item) DO UPDATE SET cursor = excluded.cursor", (cursor,))
+        "INSERT INTO sync_state (item, cursor, synced_at) VALUES ('main', ?, ?) "
+        "ON CONFLICT(item) DO UPDATE SET cursor = excluded.cursor, synced_at = excluded.synced_at",
+        (cursor, now))
 
 def upsert(conn, t):
     d = t.to_dict()

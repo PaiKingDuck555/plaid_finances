@@ -168,6 +168,58 @@
   }
   .filter-chip.show { display: inline-flex; }
   .filter-chip button { border: 0; background: transparent; color: inherit; font-weight: 700; cursor: pointer; }
+
+  /* ── View switcher (Activity / Balance) ── */
+  .views { display: inline-flex; gap: 4px; padding: 5px; border-radius: 999px;
+    background: rgba(255,255,255,0.55); border: 1px solid var(--line); backdrop-filter: blur(12px); margin-bottom: 22px; }
+  .view-btn { appearance: none; border: 0; background: transparent; cursor: pointer;
+    font: 600 12px/1 var(--sans); letter-spacing: 0.04em; text-transform: uppercase; color: var(--ink-3);
+    padding: 10px 18px; border-radius: 999px; transition: color .2s, background .2s; }
+  .view-btn.active { color: #f7fffc; background: var(--ink); box-shadow: 0 8px 20px rgba(14,26,36,0.16); }
+
+  /* ── Hot/cold flow toggle + summary ── */
+  .flow-toggle { display: inline-flex; gap: 4px; padding: 4px; border-radius: 999px;
+    background: rgba(255,255,255,0.6); border: 1px solid var(--line); margin: 0 auto 18px; }
+  .flow-btn { appearance: none; border: 0; background: transparent; cursor: pointer;
+    font: 600 12px/1 var(--sans); letter-spacing: 0.03em; color: var(--ink-3); padding: 9px 18px; border-radius: 999px; }
+  .flow-btn.active[data-flow="spent"] { color: #fff; background: var(--spend); }
+  .flow-btn.active[data-flow="made"] { color: #fff; background: var(--accent); }
+  .flow-summary { display: flex; justify-content: center; gap: 10px; margin-top: 18px; flex-wrap: wrap; }
+  .fs { display: flex; flex-direction: column; align-items: center; gap: 3px; padding: 10px 18px;
+    border-radius: 16px; background: var(--surface); border: 1px solid var(--line); min-width: 104px; }
+  .fs-v { font-family: var(--display); font-weight: 700; font-size: 20px; letter-spacing: -0.02em; font-variant-numeric: tabular-nums; }
+  .fs-l { font-size: 10px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: var(--ink-3); }
+  .fs.hot .fs-v { color: var(--spend); } .fs.cold .fs-v { color: var(--accent); }
+  .fs.net.pos .fs-v { color: var(--accent); } .fs.net.neg .fs-v { color: var(--spend); }
+
+  .chart.hot .bar { background: linear-gradient(180deg, #ff7a5c, #e24a35 70%, #c23a28); }
+  .chart.cold .bar { background: linear-gradient(180deg, #19c4a8, #0d9f8a 70%, #0a7f6f); }
+
+  /* ── Balance view ── */
+  .bal-total { text-align: center; margin: 6px 0 30px; }
+  .bal-total-v { font-family: var(--display); font-weight: 700; font-size: clamp(52px, 11vw, 92px);
+    letter-spacing: -0.045em; line-height: 0.95; color: var(--accent); animation: rise 0.45s cubic-bezier(.22,1,.36,1); }
+  .bal-total-l { margin-top: 12px; font-size: 12px; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase; color: var(--ink-3); }
+  .bal-cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 16px; }
+  .bal-card { background: var(--surface); border: 1px solid var(--line); border-radius: 20px; padding: 20px 18px; backdrop-filter: blur(10px); }
+  .bal-card-top { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; margin-bottom: 12px; }
+  .bal-name { font-size: 14px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .bal-sub { font-size: 11px; font-weight: 600; color: var(--ink-3); white-space: nowrap; }
+  .bal-amt { font-family: var(--display); font-weight: 700; font-size: 30px; letter-spacing: -0.03em; font-variant-numeric: tabular-nums; }
+  .bal-line { margin-top: 6px; font-size: 11px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--ink-3); }
+  .bal-note { margin-top: 20px; font-size: 12px; color: var(--ink-3); font-weight: 500; text-align: center; }
+
+  /* ── Freshness stamp (unobtrusive, fixed corner) ── */
+  .sync-stamp {
+    position: fixed; right: 14px; bottom: 12px; z-index: 20;
+    display: inline-flex; align-items: center; gap: 6px;
+    font: 500 11px/1 var(--sans); color: var(--ink-3);
+    background: rgba(255,255,255,0.66); border: 1px solid var(--line);
+    border-radius: 999px; padding: 6px 12px; backdrop-filter: blur(8px);
+    box-shadow: 0 6px 18px rgba(14,26,36,0.06);
+  }
+  .sync-stamp::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: var(--accent); flex: none; }
+  @media (max-width: 560px) { .sync-stamp { right: 10px; bottom: 10px; font-size: 10px; padding: 5px 10px; } }
 </style>
 </head>
 <body>
@@ -192,6 +244,12 @@
     <p class="tagline">All-time spending, one period at a time — with merchants, places, hours, and the full ledger.</p>
     <div id="banner" class="banner">Pulling the longest history available. New days may keep arriving for a minute.</div>
 
+    <div class="views" role="tablist">
+      <button class="view-btn active" data-view="activity">Activity</button>
+      <button class="view-btn" data-view="balance">Balance</button>
+    </div>
+
+    <div id="activityView">
     <div class="grains" role="tablist">
       <div class="grain-pill" id="pill"></div>
       <button class="grain" data-grain="day">Daily</button>
@@ -209,9 +267,14 @@
         </div>
         <button id="next" aria-label="Next">→</button>
       </div>
+      <div class="flow-toggle" role="tablist">
+        <button class="flow-btn active" data-flow="spent">Spent</button>
+        <button class="flow-btn" data-flow="made">Made</button>
+      </div>
       <div class="hero-spend" id="heroSpend">$0</div>
       <div class="hero-kicker" id="heroKicker">spent</div>
       <div class="delta flat" id="delta">vs prior period</div>
+      <div class="flow-summary" id="flowSummary"></div>
     </section>
 
     <section class="chart-block"><div class="chart" id="chart"></div></section>
@@ -248,13 +311,26 @@
       <div class="filter-chip" id="merchantFilter"><span id="merchantFilterLabel"></span><button type="button" id="clearMerchant">✕</button></div>
       <div class="txs" id="txs"></div>
     </section>
+    </div><!-- /activityView -->
+
+    <div id="balanceView" hidden>
+      <div class="bal-total">
+        <div class="bal-total-v" id="balTotal">—</div>
+        <div class="bal-total-l">total available cash</div>
+      </div>
+      <div class="bal-cards" id="balCards"></div>
+      <div class="bal-note" id="balNote"></div>
+    </div>
   </div>
+
+  <div class="sync-stamp" id="syncStamp" hidden></div>
 
 <script>
 const TRANSFER = new Set(["TRANSFER_IN", "TRANSFER_OUT"]);
 const GRAINS = ["day", "week", "month", "days90"];
 const state = {
   grain: "week",
+  flow: "spent",       // "spent" (hot) | "made" (cold)
   index: -1,
   periods: [],
   txs: [],
@@ -286,6 +362,8 @@ const fmtRange = (a, b) => {
 };
 
 const isSpend = (t) => !t.pending && t.amount > 0 && !TRANSFER.has(t.category);
+// Plaid convention: negative amount = money into the account (income / deposits).
+const isIncome = (t) => !t.pending && t.amount < 0 && !TRANSFER.has(t.category);
 const merchantOf = (t) => t.merchant_name || t.name || "Unknown";
 
 function addDays(d, n) { const x = new Date(d); x.setDate(x.getDate() + n); return x; }
@@ -349,8 +427,10 @@ function buildPeriods(grain, txs) {
 
 function attachSpend(periods, txs) {
   for (const p of periods) {
-    p.spent = txs.filter(t => isSpend(t) && t.date >= p.start && t.date <= p.end)
-      .reduce((s, t) => s + t.amount, 0);
+    const inWin = txs.filter(t => t.date >= p.start && t.date <= p.end);
+    p.spent = inWin.filter(isSpend).reduce((s, t) => s + t.amount, 0);
+    p.made = inWin.filter(isIncome).reduce((s, t) => s - t.amount, 0);
+    p.net = p.made - p.spent;
   }
   return periods;
 }
@@ -373,30 +453,45 @@ function txsInPeriod(p, { respectFilters = true } = {}) {
   return list.sort((a, b) => (a.date < b.date ? 1 : a.date > b.date ? -1 : Math.abs(b.amount) - Math.abs(a.amount)));
 }
 
+// Sum spend + income over a [start,end] date range (inclusive, ISO strings).
+function flowInRange(start, end) {
+  let spent = 0, made = 0;
+  for (const t of state.txs) {
+    if (t.date < start || t.date > end) continue;
+    if (isSpend(t)) spent += t.amount;
+    else if (isIncome(t)) made -= t.amount;
+  }
+  return { spent, made };
+}
+
 function chartBuckets(p) {
   if (state.grain === "day") {
+    // Category breakdown for the active flow (hot = spend, cold = income).
+    const useIncome = state.flow === "made";
     const map = new Map();
-    for (const t of txsInPeriod(p, { respectFilters: false }).filter(isSpend)) {
+    for (const t of txsInPeriod(p, { respectFilters: false }).filter(useIncome ? isIncome : isSpend)) {
       const k = prettyCat(t.category);
-      map.set(k, (map.get(k) || 0) + t.amount);
+      map.set(k, (map.get(k) || 0) + (useIncome ? -t.amount : t.amount));
     }
     return [...map.entries()].sort((a,b)=>b[1]-a[1]).slice(0, 8)
-      .map(([label, spent]) => ({ key: label, label: label.split(" ")[0], spent, jump: null }));
+      .map(([label, val]) => ({
+        key: label, label: label.split(" ")[0],
+        spent: useIncome ? 0 : val, made: useIncome ? val : 0, jump: null,
+      }));
   }
   if (state.grain === "week") {
     const s = parseISO(p.start);
     return Array.from({ length: 7 }, (_, i) => {
       const d = addDays(s, i); const key = iso(d);
-      const spent = state.txs.filter(t => isSpend(t) && t.date === key).reduce((n, t) => n + t.amount, 0);
-      return { key, label: d.toLocaleDateString("en-US", { weekday: "narrow" }), spent, jump: { grain: "day", key } };
+      const f = flowInRange(key, key);
+      return { key, label: d.toLocaleDateString("en-US", { weekday: "narrow" }), ...f, jump: { grain: "day", key } };
     });
   }
   if (state.grain === "month") {
     const s = parseISO(p.start), e = parseISO(p.end), buckets = [];
     for (let d = new Date(s); d <= e; d.setDate(d.getDate() + 1)) {
       const key = iso(d);
-      const spent = state.txs.filter(t => isSpend(t) && t.date === key).reduce((n, t) => n + t.amount, 0);
-      buckets.push({ key, label: String(d.getDate()), spent, jump: { grain: "day", key } });
+      buckets.push({ key, label: String(d.getDate()), ...flowInRange(key, key), jump: { grain: "day", key } });
     }
     return buckets;
   }
@@ -406,11 +501,9 @@ function chartBuckets(p) {
   while (cursor <= e) {
     const ws = new Date(Math.max(cursor, s));
     const we = new Date(Math.min(endOfWeek(cursor), e));
-    const key = iso(ws);
-    const spent = state.txs.filter(t => isSpend(t) && t.date >= iso(ws) && t.date <= iso(we)).reduce((n, t) => n + t.amount, 0);
     buckets.push({
-      key, label: ws.toLocaleDateString("en-US", { month: "numeric", day: "numeric" }),
-      spent, jump: { grain: "week", key: iso(startOfWeek(ws)) },
+      key: iso(ws), label: ws.toLocaleDateString("en-US", { month: "numeric", day: "numeric" }),
+      ...flowInRange(iso(ws), iso(we)), jump: { grain: "week", key: iso(startOfWeek(ws)) },
     });
     cursor.setDate(cursor.getDate() + 7);
   }
@@ -556,8 +649,9 @@ function renderHistory(p) {
 
   const list = txsInPeriod(p);
   const spent = list.filter(t => t.amount > 0).reduce((s, t) => s + t.amount, 0);
+  const made = list.filter(t => t.amount < 0).reduce((s, t) => s - t.amount, 0);
   document.getElementById("histStats").textContent =
-    `${list.length} transactions · ${fmtMoney(spent)} outflow` +
+    `${list.length} transactions · ${fmtMoney(spent)} out · ${fmtMoney(made)} in` +
     (state.merchantFilter ? ` · filtered` : "");
 
   document.getElementById("txs").innerHTML = list.length
@@ -581,28 +675,35 @@ function render() {
   if (!p) {
     document.getElementById("periodLabel").textContent = "No activity yet";
     hero.textContent = "$0";
+    document.getElementById("flowSummary").innerHTML = "";
     document.getElementById("chart").innerHTML = "";
     ["merchants","cats","locations"].forEach(id => document.getElementById(id).innerHTML = `<div class="empty">Nothing here</div>`);
     document.getElementById("txs").innerHTML = `<div class="empty">Nothing here</div>`;
     return;
   }
 
+  const flow = state.flow;
+  const flowWord = flow === "made" ? "made" : "spent";
+  const val = p[flow];
+
   hero.replaceWith(hero.cloneNode(true));
   const hero2 = document.getElementById("heroSpend");
-  const m = money(p.spent);
+  const m = money(val);
   hero2.innerHTML = `${m.sign}$${m.whole}<span class="cents">.${m.cents}</span>`;
+  hero2.style.color = flow === "made" ? "var(--accent)" : "var(--spend)";
 
+  const periodWord =
+    state.grain === "day" ? "this day"
+    : state.grain === "week" ? "this week"
+    : state.grain === "month" ? "this month"
+    : "in 90 days";
   document.getElementById("periodLabel").textContent = p.label;
   document.getElementById("periodSub").textContent =
     state.grain === "day" ? fmtDayLong(parseISO(p.start))
     : state.grain === "week" ? "Week of " + fmtDay(parseISO(p.start))
     : state.grain === "month" ? p.sub
     : "Rolling window";
-  document.getElementById("heroKicker").textContent =
-    state.grain === "day" ? "spent this day"
-    : state.grain === "week" ? "spent this week"
-    : state.grain === "month" ? "spent this month"
-    : "spent in 90 days";
+  document.getElementById("heroKicker").textContent = `${flowWord} ${periodWord}`;
 
   document.getElementById("prev").disabled = state.index <= 0;
   document.getElementById("next").disabled = state.index >= state.periods.length - 1;
@@ -613,21 +714,33 @@ function render() {
     deltaEl.className = "delta flat";
     deltaEl.textContent = "First period on record";
   } else {
-    const diff = p.spent - prior.spent;
-    const pct = prior.spent ? (diff / prior.spent) * 100 : 0;
-    deltaEl.className = "delta " + (diff > 0.5 ? "up" : diff < -0.5 ? "down" : "flat");
+    const diff = val - prior[flow];
+    const pct = prior[flow] ? (diff / prior[flow]) * 100 : 0;
+    // For income, more is good (down/teal); for spend, more is bad (up/red).
+    const bad = flow === "made" ? diff < -0.5 : diff > 0.5;
+    const good = flow === "made" ? diff > 0.5 : diff < -0.5;
+    deltaEl.className = "delta " + (bad ? "up" : good ? "down" : "flat");
     const arrow = diff > 0.5 ? "↑" : diff < -0.5 ? "↓" : "→";
     deltaEl.textContent = `${arrow} ${fmtMoney(Math.abs(diff))} (${pct >= 0 ? "+" : ""}${pct.toFixed(0)}%) vs prior`;
   }
 
+  const netCls = p.net >= 0 ? "pos" : "neg";
+  const netStr = (p.net >= 0 ? "+" : "−") + fmtMoney(Math.abs(p.net));
+  document.getElementById("flowSummary").innerHTML = `
+    <div class="fs hot"><span class="fs-v">${fmtMoney(p.spent)}</span><span class="fs-l">spent</span></div>
+    <div class="fs cold"><span class="fs-v">${fmtMoney(p.made)}</span><span class="fs-l">made</span></div>
+    <div class="fs net ${netCls}"><span class="fs-v">${netStr}</span><span class="fs-l">net</span></div>`;
+
   const buckets = chartBuckets(p);
-  const max = Math.max(...buckets.map(b => b.spent), 1);
+  const max = Math.max(...buckets.map(b => b[flow]), 1);
   const chart = document.getElementById("chart");
+  chart.className = "chart " + (flow === "made" ? "cold" : "hot");
   chart.innerHTML = buckets.map((b, i) => {
-    const h = Math.max(4, (b.spent / max) * 100);
+    const bv = b[flow];
+    const h = Math.max(4, (bv / max) * 100);
     const jump = b.jump ? `data-jump-grain="${b.jump.grain}" data-jump-key="${b.jump.key}"` : "";
     return `<div class="bar-wrap" ${jump}>
-      <div class="bar-value">${b.spent ? fmtMoney(b.spent) : ""}</div>
+      <div class="bar-value">${bv ? fmtMoney(bv) : ""}</div>
       <div class="bar" style="height:${h}%;animation-delay:${(i*0.02).toFixed(2)}s"></div>
       <div class="bar-label">${b.label}</div>
     </div>`;
@@ -641,6 +754,61 @@ function render() {
 }
 
 document.querySelectorAll(".grain").forEach(btn => btn.addEventListener("click", () => setGrain(btn.dataset.grain)));
+document.querySelectorAll(".flow-btn").forEach(btn => btn.addEventListener("click", () => {
+  state.flow = btn.dataset.flow;
+  document.querySelectorAll(".flow-btn").forEach(b => b.classList.toggle("active", b.dataset.flow === state.flow));
+  render();
+}));
+
+// ── View switcher (Activity / Balance) ──
+let balanceLoaded = false;
+document.querySelectorAll(".view-btn").forEach(btn => btn.addEventListener("click", () => {
+  const view = btn.dataset.view;
+  document.querySelectorAll(".view-btn").forEach(b => b.classList.toggle("active", b === btn));
+  const activity = view === "activity";
+  document.getElementById("activityView").hidden = !activity;
+  document.getElementById("balanceView").hidden = activity;
+  if (!activity && !balanceLoaded) loadBalance();
+}));
+
+async function loadBalance() {
+  const cards = document.getElementById("balCards");
+  const note = document.getElementById("balNote");
+  cards.innerHTML = `<div class="empty">Loading balances…</div>`;
+  note.textContent = "";
+  let res;
+  try { res = await fetch("/api/balance"); }
+  catch (e) { cards.innerHTML = `<div class="empty">Couldn’t reach the server.</div>`; return; }
+  if (res.status === 401) { location.href = "/login"; return; }
+  const d = await res.json();
+  if (d.error) {
+    cards.innerHTML = `<div class="empty">${d.error}</div>`;
+    document.getElementById("balTotal").textContent = "—";
+    return;
+  }
+  balanceLoaded = true;
+  const accts = d.accounts || [];
+  const cash = accts.filter(a => a.type === "depository");
+  const total = cash.reduce((s, a) => s + ((a.available != null ? a.available : a.current) || 0), 0);
+  document.getElementById("balTotal").innerHTML = fmtMoney(total);
+  cards.innerHTML = accts.length ? accts.map(a => {
+    const bal = a.available != null ? a.available : a.current;
+    const sub = [a.subtype, a.mask ? "•••• " + a.mask : null].filter(Boolean).join(" · ");
+    const showCurrent = a.current != null && a.available != null && a.current !== a.available;
+    return `<div class="bal-card">
+      <div class="bal-card-top">
+        <div class="bal-name">${a.name || a.official_name || "Account"}</div>
+        <div class="bal-sub">${sub}</div>
+      </div>
+      <div class="bal-amt">${fmtMoney(bal || 0)}</div>
+      <div class="bal-line">${a.available != null ? "available" : "current"}${showCurrent ? " · current " + fmtMoney(a.current) : ""}</div>
+    </div>`;
+  }).join("") : `<div class="empty">No accounts found.</div>`;
+  if (d.fetched_at) {
+    note.textContent = "Live from your bank · cached up to 90s · " + new Date(d.fetched_at * 1000).toLocaleTimeString("en-US");
+  }
+}
+
 document.getElementById("prev").addEventListener("click", () => go(-1));
 document.getElementById("next").addEventListener("click", () => go(1));
 document.getElementById("search").addEventListener("input", (e) => { state.search = e.target.value; render(); });
@@ -656,10 +824,40 @@ window.addEventListener("keydown", (e) => {
   if (e.key === "4") setGrain("days90");
 });
 
+function relTime(iso) {
+  const t = new Date(iso).getTime();
+  if (Number.isNaN(t)) return "";
+  const s = Math.round((Date.now() - t) / 1000);
+  if (s < 60) return "just now";
+  if (s < 3600) return Math.floor(s / 60) + "m ago";
+  if (s < 86400) return Math.floor(s / 3600) + "h ago";
+  if (s < 86400 * 7) return Math.floor(s / 86400) + "d ago";
+  return new Date(iso).toLocaleDateString("en-US", { month: "short", day: "numeric" });
+}
+
+let lastSyncISO = null;
+function paintSyncStamp() {
+  const el = document.getElementById("syncStamp");
+  if (!lastSyncISO) return;
+  el.textContent = "synced " + relTime(lastSyncISO);
+  el.title = "Latest data received from your bank: " + new Date(lastSyncISO).toLocaleString("en-US");
+  el.hidden = false;
+}
+async function loadSyncStamp() {
+  try {
+    const r = await fetch("/api/last-sync");
+    if (!r.ok) return;
+    const d = await r.json();
+    if (d.synced_at) { lastSyncISO = d.synced_at; paintSyncStamp(); }
+  } catch (e) { /* leave the stamp hidden */ }
+}
+
 async function boot() {
   if (new URLSearchParams(location.search).get("fresh")) {
     document.getElementById("banner").classList.add("show");
   }
+  loadSyncStamp();
+  setInterval(loadSyncStamp, 60000);   // keep freshness current + re-paint "Xm ago"
   const res = await fetch("/api/transactions");
   if (res.status === 401) { location.href = "/login"; return; }
   state.txs = await res.json();

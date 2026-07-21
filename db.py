@@ -58,7 +58,8 @@ def init_db():
     );
     CREATE TABLE IF NOT EXISTS sync_state (
         item TEXT PRIMARY KEY,
-        cursor TEXT
+        cursor TEXT,
+        synced_at TEXT
     );
     CREATE TABLE IF NOT EXISTS coding_cache (
         key TEXT PRIMARY KEY,
@@ -66,6 +67,10 @@ def init_db():
         payload TEXT
     );
     """)
+    # Migration: add synced_at to pre-existing sync_state tables.
+    cols = [r[1] for r in conn.execute("PRAGMA table_info(sync_state)").fetchall()]
+    if "synced_at" not in cols:
+        conn.execute("ALTER TABLE sync_state ADD COLUMN synced_at TEXT")
     conn.commit()
     conn.close()
 

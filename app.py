@@ -17,6 +17,7 @@ from werkzeug.middleware.proxy_fix import ProxyFix
 import plaid
 from plaid.api import plaid_api
 from plaid.model.country_code import CountryCode
+from plaid.model.accounts_balance_get_request import AccountsBalanceGetRequest
 from plaid.model.item_public_token_exchange_request import ItemPublicTokenExchangeRequest
 from plaid.model.item_remove_request import ItemRemoveRequest
 from plaid.model.link_token_create_request import LinkTokenCreateRequest
@@ -537,6 +538,17 @@ def api_transactions():
     return jsonify([dict(r) for r in rows])
 
 
+@app.route("/api/last-sync")
+def api_last_sync():
+    conn = get_conn()
+    row = conn.execute(
+        "SELECT synced_at FROM sync_state WHERE item = 'main'"
+    ).fetchone()
+    conn.close()
+    synced_at = row["synced_at"] if row and "synced_at" in row.keys() else None
+    return jsonify({"synced_at": synced_at})
+
+
 @app.route("/api/range")
 def api_range():
     conn = get_conn()
@@ -607,6 +619,47 @@ def api_summary():
         "weekly": [dict(r) for r in weekly],
         "monthly": [dict(r) for r in monthly],
     })
+
+
+_balance_cache: dict = {"at": 0.0, "data": None}
+BALANCE_TTL = 90  # seconds — accounts/balance/get is a billable call in production
+
+
+@app.route("/api/balance")
+def api_balance():
+    token = os.environ.get("PLAID_ACCESS_TOKEN")
+    if not token:
+        return jsonify({"error": "No bank linked yet. Link an account at /link."})
+    now = time.time()
+    if _balance_cache["data"] and (now - _balance_cache["at"] < BALANCE_TTL):
+        return jsonify(_balance_cache["data"])
+    try:
+        resp = plaid_client.accounts_balance_get(
+            AccountsBalanceGetRequest(access_token=token)
+        )
+    except Exception as e:
+        return jsonify({"error": str(e)}), 502
+
+    accounts = []
+    for a in resp.accounts:
+        b = a.balances
+        accounts.append({
+            "account_id": a.account_id,
+            "name": getattr(a, "name", None),
+            "official_name": getattr(a, "official_name", None),
+            "mask": getattr(a, "mask", None),
+            "type": getattr(getattr(a, "type", None), "value", None),
+            "subtype": getattr(getattr(a, "subtype", None), "value", None),
+            "available": getattr(b, "available", None),
+            "current": getattr(b, "current", None),
+            "limit": getattr(b, "limit", None),
+            "iso_currency_code": getattr(b, "iso_currency_code", None)
+            or getattr(b, "unofficial_currency_code", None),
+        })
+    data = {"accounts": accounts, "fetched_at": now}
+    _balance_cache["data"] = data
+    _balance_cache["at"] = now
+    return jsonify(data)
 
 
 @app.route("/api/coding")
