@@ -75,12 +75,12 @@
   /* ── Console (revealed on click) ── */
   .console { margin-top: 22px; display: none; }
   .console.show { display: block; }
-  .console-grid { display: grid; grid-template-columns: 1.35fr 0.85fr; gap: 18px; }
+  .console-grid { display: grid; grid-template-columns: minmax(0, 1.35fr) minmax(0, 0.85fr); gap: 18px; }
   @media (max-width: 820px) {
     .stats { grid-template-columns: repeat(3, 1fr); }
     .console-grid { grid-template-columns: 1fr; }
   }
-  .panel { background: var(--surface); border: 1px solid var(--line); border-radius: 18px; padding: 16px; }
+  .panel { min-width: 0; background: var(--surface); border: 1px solid var(--line); border-radius: 18px; padding: 16px; }
   .panel-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
   .panel-head h3 { font-family: var(--display); font-size: 18px; font-weight: 650; letter-spacing: -0.01em; }
   .btn {
@@ -90,14 +90,15 @@
   .btn:hover { border-color: var(--accent); color: var(--accent); }
   .btn.dark { background: #0e1a24; color: #f4fbf8; border-color: #0e1a24; }
   .btn.dark:hover { background: #16303c; color: #fff; }
-  #terminal { height: 420px; background: #111; padding: 10px; border-radius: 12px; }
+  #terminal { width: 100%; height: 420px; overflow: hidden; background: #111; padding: 10px; border-radius: 12px; }
   .term-status { font-size: 12px; color: var(--ink-3); font-weight: 500; }
+  .term-actions { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
 
   /* file browser */
   .crumbs { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; font-size: 12.5px; margin-bottom: 10px; color: var(--ink-3); font-family: var(--mono); }
   .crumbs a { color: var(--accent); text-decoration: none; cursor: pointer; }
   .crumbs span.sep { color: var(--ink-3); }
-  .files { display: flex; flex-direction: column; max-height: 360px; overflow: auto; margin: 0 -6px; }
+  .files { display: flex; flex-direction: column; min-height: 48px; max-height: 360px; overflow: auto; margin: 0 -6px; }
   .frow { display: flex; align-items: center; gap: 10px; padding: 9px 6px; border-bottom: 1px solid var(--line); font-size: 13px; }
   .frow:last-child { border-bottom: 0; }
   .frow .ic { width: 18px; text-align: center; flex: none; }
@@ -108,8 +109,9 @@
   .frow .dl { color: var(--ink-3); text-decoration: none; flex: none; font-size: 15px; }
   .frow .dl:hover { color: var(--accent); }
   .dropzone {
-    margin-top: 12px; border: 1.5px dashed var(--line); border-radius: 12px; padding: 16px;
+    display: block; width: 100%; margin-top: 12px; border: 1.5px dashed var(--line); border-radius: 12px; padding: 16px;
     text-align: center; font-size: 12.5px; color: var(--ink-3); cursor: pointer; transition: .12s;
+    line-height: 1.45; overflow-wrap: anywhere;
   }
   .dropzone:hover, .dropzone.drag { border-color: var(--accent); color: var(--accent); background: rgba(13,159,138,0.05); }
   .empty { color: var(--ink-3); font-size: 13px; padding: 14px 6px; }
@@ -162,9 +164,9 @@
             <span class="term-status" id="termStatus">connecting…</span>
           </div>
           <div id="terminal"></div>
-          <div style="margin-top:10px; display:flex; gap:8px">
+          <div class="term-actions">
             <button class="btn dark" id="reconnectBtn">Reconnect</button>
-            <span class="term-status" style="align-self:center">Type anything — you’re on the Pi as <b>dammi</b>.</span>
+            <span class="term-status">Type anything — you’re on the Pi as <b>dammi</b>.</span>
           </div>
         </section>
 
