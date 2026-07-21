@@ -7,7 +7,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,650;9..144,700&family=Sora:wght@400;500;600&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/xterm/5.3.0/xterm.min.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@xterm/xterm@5.5.0/css/xterm.min.css">
 <style>
   :root {
     --ink: #0e1a24; --ink-2: #3d4f5c; --ink-3: #7a8b97; --accent: #0d9f8a;
@@ -185,9 +185,9 @@
     </div>
   </div>
 
-<script src="https://cdnjs.cloudflare.com/ajax/libs/xterm/5.3.0/xterm.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/xterm-addon-fit/0.8.0/xterm-addon-fit.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.5/socket.io.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@xterm/xterm@5.5.0/lib/xterm.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@xterm/addon-fit@0.10.0/lib/addon-fit.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/socket.io@4.7.5/client-dist/socket.io.min.js"></script>
 <script>
 // ─── helpers ───
 function fmtBytesKb(kb) {
@@ -261,8 +261,11 @@ document.getElementById("piCard").addEventListener("click", (e) => {
   document.getElementById("piCard").classList.add("open");
   document.getElementById("piHint").style.display = "none";
   document.getElementById("console").classList.add("show");
-  startTerminal();
-  loadFiles();
+  // Isolate the two features: a failure in one must not take down the other.
+  try { loadFiles(); }
+  catch (err) { document.getElementById("files").innerHTML = "<div class='empty'>Files failed to load: " + err.message + "</div>"; }
+  try { startTerminal(); }
+  catch (err) { document.getElementById("termStatus").textContent = "failed: " + err.message; }
 });
 
 // ─── terminal ───
