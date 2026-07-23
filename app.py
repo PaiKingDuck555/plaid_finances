@@ -665,12 +665,12 @@ def api_balance():
 @app.route("/api/coding")
 def api_coding():
     login = session.get("github_login") or ALLOWED_GITHUB_LOGIN
-    token = os.environ.get("GITHUB_TOKEN")
+    token = os.environ.get("GITHUB_TOKEN") or os.environ.get("GITHUB_PAT")
     if not login:
         return jsonify({"error": "Set ALLOWED_GITHUB_LOGIN (and sign in) to load coding."})
     if not token:
         return jsonify({
-            "error": "Set GITHUB_TOKEN (a PAT) as an env var to load your contribution graph."
+            "error": "Set GITHUB_TOKEN (or GITHUB_PAT, a PAT) as an env var to load your contribution graph."
         })
     return jsonify(fetch_contributions(token, login))
 
